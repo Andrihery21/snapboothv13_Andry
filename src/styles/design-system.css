@@ -1,0 +1,258 @@
+/* Système de design Snapbooth - Variables CSS centralisées selon la nouvelle charte graphique */
+
+:root {
+  /* Couleurs base - mode clair */
+  --color-primary: 124, 58, 237;      /* #7C3AED - Violet 600 */
+  --color-secondary: 37, 99, 235;     /* #2563EB - Bleu 600 */
+  --color-success: 16, 185, 129;      /* #10B981 - Emerald 600 */
+  --color-error: 239, 68, 68;         /* #EF4444 - Red 600 */
+  --color-warning: 245, 158, 11;      /* #F59E0B - Amber 500 */
+  --color-info: 59, 130, 246;         /* #3B82F6 - Blue 500 */
+  
+  /* Neutres - mode clair */
+  --color-background: 249, 250, 251;  /* #F9FAFB - Fond principal */
+  --color-surface: 255, 255, 255;     /* #FFFFFF - Fond secondaire */
+  --color-surface-alt: 243, 244, 246; /* #F3F4F6 - Fond tertiaire */
+  --color-border: 229, 231, 235;      /* #E5E7EB - Bordure principale */
+  --color-border-secondary: 209, 213, 219; /* #D1D5DB - Bordure secondaire */
+  --color-text: 24, 24, 27;           /* #18181B - Texte principal */
+  --color-text-secondary: 75, 85, 99; /* #4B5563 - Texte secondaire */
+  --color-text-disabled: 156, 163, 175; /* #9CA3AF - Texte désactivé */
+  
+  /* Typographie */
+  --font-family: 'Inter', 'SF Pro Display', 'Roboto', system-ui, -apple-system, sans-serif;
+  --font-size-base: 16px;
+  --line-height-base: 1.5;
+  
+  /* Animation */
+  --transition-fast: 150ms ease-out;
+  --transition-normal: 200ms ease-out;
+  --transition-slow: 300ms ease-out;
+  
+  /* Spacing */
+  --space-1: 4px;   /* 0.25rem */
+  --space-2: 8px;   /* 0.5rem */
+  --space-3: 12px;  /* 0.75rem */
+  --space-4: 16px;  /* 1rem */
+  --space-6: 24px;  /* 1.5rem */
+  --space-8: 32px;  /* 2rem */
+  --space-12: 48px; /* 3rem */
+  --space-16: 64px; /* 4rem */
+  
+  /* Border Radius */
+  --radius-sm: 4px;  /* 0.25rem */
+  --radius-md: 8px;  /* 0.5rem */
+  --radius-lg: 12px; /* 0.75rem */
+  --radius-xl: 16px; /* 1rem */
+  
+  /* Shadows */
+  --shadow-card: 0 2px 8px 0 rgba(0, 0, 0, 0.08);
+  --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.12);
+  
+  /* Dégradés */
+  --gradient-primary: linear-gradient(135deg, rgb(124, 58, 237), rgb(37, 99, 235));
+  --gradient-dark: linear-gradient(135deg, rgb(109, 40, 217), rgb(29, 78, 216));
+  --gradient-media: linear-gradient(135deg, rgb(192, 132, 252), rgb(147, 197, 253));
+}
+
+.dark {
+  /* Couleurs base - mode sombre */
+  --color-primary: 167, 139, 250;     /* #A78BFA - Violet 400 */
+  --color-secondary: 96, 165, 250;    /* #60A5FA - Bleu 400 */
+  --color-success: 52, 211, 153;      /* #34D399 - Emerald 400 */
+  --color-error: 248, 113, 113;       /* #F87171 - Red 400 */
+  --color-warning: 251, 191, 36;      /* #FBBF24 - Amber 400 */
+  --color-info: 96, 165, 250;         /* #60A5FA - Blue 400 */
+  
+  /* Neutres - mode sombre */
+  --color-background: 24, 24, 27;     /* #18181B - Fond principal */
+  --color-surface: 39, 39, 42;        /* #27272A - Fond secondaire */
+  --color-surface-alt: 63, 63, 70;    /* #3F3F46 - Fond tertiaire */
+  --color-border: 82, 82, 91;         /* #52525B - Bordure principale */
+  --color-border-secondary: 113, 113, 122; /* #71717A - Bordure secondaire */
+  --color-text: 249, 250, 251;        /* #F9FAFB - Texte principal */
+  --color-text-secondary: 212, 212, 216; /* #D4D4D8 - Texte secondaire */
+  --color-text-disabled: 113, 113, 122; /* #71717A - Texte désactivé */
+  
+  /* Shadows */
+  --shadow-card: 0 2px 8px 0 rgba(0, 0, 0, 0.25);
+  --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.4);
+  
+  /* Ombres */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* Transitions */
+  --transition-fast: 150ms;
+  --transition-normal: 250ms;
+  --transition-slow: 350ms;
+  
+  /* Z-index */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1100;
+  --z-index-fixed: 1200;
+  --z-index-modal-backdrop: 1300;
+  --z-index-modal: 1400;
+  --z-index-popover: 1500;
+  --z-index-tooltip: 1600;
+}
+
+/* Classes utilitaires pour l'accessibilité */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Classes pour les éléments tactiles */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touch-target-lg {
+  min-width: 56px;
+  min-height: 56px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Amélioration du feedback tactile */
+.touch-feedback:active {
+  transform: scale(0.96);
+  transition: transform var(--transition-fast);
+}
+
+/* Espacement amélioré pour mobile */
+.mobile-spacing {
+  padding: var(--spacing-md);
+}
+
+@media (max-width: 640px) {
+  .mobile-spacing {
+    padding: var(--spacing-lg);
+  }
+  
+  .mobile-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+  
+  .mobile-full-width {
+    width: 100%;
+  }
+  
+  .mobile-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+}
+
+.touch-active {
+  transform: scale(0.95);
+  transition: transform var(--transition-fast);
+}
+
+/* Composants de base */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+.btn-primary:hover, .btn-primary:focus {
+  background-color: var(--color-primary-dark);
+}
+
+.btn-secondary {
+  background-color: var(--color-secondary);
+  color: var(--color-secondary-contrast);
+}
+
+.btn-secondary:hover, .btn-secondary:focus {
+  background-color: var(--color-secondary-dark);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-outline:hover, .btn-outline:focus {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-contrast);
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  padding: 0;
+}
+
+.btn-icon.btn-lg {
+  width: 48px;
+  height: 48px;
+}
+
+/* Cartes et conteneurs */
+.card {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+}
+
+/* Formulaires */
+.input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  transition: border-color var(--transition-fast);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: var(--spacing-sm);
+}

@@ -1,0 +1,1030 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Trash2, Upload, Edit2, Plus, Save, AlertTriangle, Info, Camera } from 'lucide-react';
+import { useScreenConfig } from "../admin/screens/ScreenConfigProvider";
+import { notify } from '../../lib/notifications';
+import axios from 'axios';
+
+// Variants d'animation
+const fadeIn = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+};
+
+const itemVariant = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.3 } }
+};
+
+/**
+ * Composant de gestion des effets pour AdminEcran
+ */
+const AdminEffect = () => {
+  const { config, updateConfig, saveScreenConfig } = useScreenConfig();
+  
+  // Référence pour l'input file
+  const fileInputRef = useRef(null);
+  const editFileInputRef = useRef(null);
+  const testImageRef = useRef(null);
+  
+  // États pour la gestion des effets
+  const [activeEffectType, setActiveEffectType] = useState('cartoon');
+  const [effects, setEffects] = useState({});
+  const [editingEffect, setEditingEffect] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [testLoading, setTestLoading] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  
+  // Types d'effets disponibles
+  const effectTypes = [
+    { id: 'cartoon', label: 'Cartoon', icon: '🎭' },
+    { id: 'caricature', label: 'Caricature', icon: '🤡' },
+    { id: 'dessin', label: 'Dessin', icon: '✏️' },
+    { id: 'univers', label: 'Univers', icon: '🌌' }
+  ];
+  
+  // Charger les effets depuis la configuration
+  useEffect(() => {
+    if (config && config.effects) {
+      setEffects(config.effects);
+    } else {
+      // Initialiser avec des objets vides si aucun effet n'est configuré
+      const defaultEffects = {
+        cartoon: [
+          { 
+            id: 'cartoon_jpcartoon', 
+            name: 'jpcartoon', 
+            preview: 'https://azafzikvwdartavmpwsc.supabase.co/storage/v1/object/public/assets/Cartoon/Cartoon%20yourself-Japanese%20manga%201.webp',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'jpcartoon' }
+            ]
+          },
+          { 
+            id: 'cartoon_hongkong', 
+            name: 'hongkong', 
+            preview: 'https://azafzikvwdartavmpwsc.supabase.co/storage/v1/object/public/assets/Cartoon/Cartoon%20yourself-Hong%20Kong-style%20comic%20style.webp',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'hongkong' }
+            ]
+          },
+          { 
+            id: 'cartoon_comic', 
+            name: 'comic', 
+            preview: 'https://azafzikvwdartavmpwsc.supabase.co/storage/v1/object/public/assets/Cartoon/Cartoon%20yourself-Comic.webp',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'comic' }
+            ]
+          },
+          { 
+            id: 'cartoon_retro', 
+            name: 'classic_cartoon', 
+            preview: 'https://azafzikvwdartavmpwsc.supabase.co/storage/v1/object/public/assets/Cartoon/Cartoon%20yourself-Retro%20Cartoon.webp',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'classic_cartoon' }
+            ]
+          },
+          { 
+            id: 'cartoon_handdrawn', 
+            name: 'handdrawn', 
+            preview: 'https://azafzikvwdartavmpwsc.supabase.co/storage/v1/object/public/assets/Cartoon/Cartoon%20yourself-handdrawn.webp',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'handdrawn' }
+            ]
+          },
+          { 
+            id: 'cartoon_amcartoon', 
+            name: 'amcartoon', 
+            preview: 'https://azafzikvwdartavmpwsc.supabase.co/storage/v1/object/public/assets/Cartoon/Cartoon%20yourself-American%20manga.webp',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'amcartoon' }
+            ]
+          }
+        ],
+        caricature: [
+          { 
+            id: 'caricature_samurai', 
+            name: 'big head,small body,chibi caricature of samurai', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1739126125629x627173688556666400/Light%20X%20-%20big%20head%2Csmall%20body%2Cchibi%20caricature%20of%20Samurai.jpg',
+            apiName: 'lightx',
+            apiKey: '{VITE_LIGHTX_API_KEY}',
+            endpoint: 'v1/effects/prompt-to-image',
+            paramsArray: [
+              { name: 'prompt', value: 'big head,small body,chibi caricature of samurai' }
+            ]
+          },
+          { 
+            id: 'caricature_doctor', 
+            name: 'big head,small body,chibi caricature of doctor', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1739125311981x859935082600382700/LightX%20-%20big%20head%2Csmall%20body%2Cchibi%20caricature%20of%20doctor.jpg',
+            apiName: 'lightx',
+            apiKey: '{VITE_LIGHTX_API_KEY}',
+            endpoint: 'v1/effects/prompt-to-image',
+            paramsArray: [
+              { name: 'prompt', value: 'big head,small body,chibi caricature of doctor' }
+            ]
+          },
+          { 
+            id: 'caricature_politician', 
+            name: 'big head,small body,chibi caricature of politician', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1739125474597x287225342642065200/Light%20X%20-%20big%20head%2Csmall%20body%2Cchibi%20caricature%20of%20politician.jpg',
+            apiName: 'lightx',
+            apiKey: '{VITE_LIGHTX_API_KEY}',
+            endpoint: 'v1/effects/prompt-to-image',
+            paramsArray: [
+              { name: 'prompt', value: 'big head,small body,chibi caricature of politician' }
+            ]
+          },
+          { 
+            id: 'caricature_firefighter', 
+            name: 'big head,small body,chibi caricature of fire fighter', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1739125667741x318419791472486240/Light%20X%20-%20big%20head%2Csmall%20body%2Cchibi%20caricature%20of%20firefighter%20%282%29.jpg',
+            apiName: 'lightx',
+            apiKey: '{VITE_LIGHTX_API_KEY}',
+            endpoint: 'v1/effects/prompt-to-image',
+            paramsArray: [
+              { name: 'prompt', value: 'big head,small body,chibi caricature of fire fighter' }
+            ]
+          },
+          { 
+            id: 'caricature_chef', 
+            name: 'big head,small body,chibi caricature of chef', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1739125929014x892874969854078300/Light%20X%20-%20big%20head%2Csmall%20body%2Cchibi%20caricature%20of%20chef.jpg',
+            apiName: 'lightx',
+            apiKey: '{VITE_LIGHTX_API_KEY}',
+            endpoint: 'v1/effects/prompt-to-image',
+            paramsArray: [
+              { name: 'prompt', value: 'big head,small body,chibi caricature of chef' }
+            ]
+          },
+          { 
+            id: 'caricature_rockstar', 
+            name: 'big head,small body,chibi caricature of rockstar', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1739162961761x567174639334006000/LightX%20Rockstar-%20big%20head%2Csmall%20body%2Cchibi%20caricature%20of%20rockstar%20%282%29.jpg',
+            apiName: 'lightx',
+            apiKey: '{VITE_LIGHTX_API_KEY}',
+            endpoint: 'v1/effects/prompt-to-image',
+            paramsArray: [
+              { name: 'prompt', value: 'big head,small body,chibi caricature of rockstar' }
+            ]
+          },
+          { 
+            id: 'caricature_footballer', 
+            name: 'big head,small body,chibi caricature of footballer', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1739126050897x142406437776538830/Light%20X%20-%20big%20head%2Csmall%20body%2Cchibi%20caricature%20of%20footballer.jpg',
+            apiName: 'lightx',
+            apiKey: '{VITE_LIGHTX_API_KEY}',
+            endpoint: 'v1/effects/prompt-to-image',
+            paramsArray: [
+              { name: 'prompt', value: 'big head,small body,chibi caricature of footballer' }
+            ]
+          }
+        ],
+        dessin: [
+          { 
+            id: 'dessin_anime', 
+            name: 'anime', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1738130120365x947590826747246600/Cartoon%20yourself-Japanese%20manga%202.png',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'anime' }
+            ]
+          },
+          { 
+            id: 'dessin_claborate', 
+            name: 'claborate', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1738130154070x692047786667617400/Cartoon%20yourself-%20Chinese%20fine%20brushwork%20painting.png',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'claborate' }
+            ]
+          },
+          { 
+            id: 'dessin_sketch', 
+            name: 'sketch', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1738564526017x784742993887914200/Cartoon%20yourself-Pencil%20drawing.png',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'sketch' }
+            ]
+          },
+          { 
+            id: 'dessin_full', 
+            name: 'full', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1738564671766x857421022456529500/Cartoon%20yourself-Pencil%20drawing%202.png',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'full' }
+            ]
+          },
+          { 
+            id: 'dessin_head', 
+            name: 'head', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1738564753249x294964184177892740/Cartoon%20yourself-Moe%20Manga.jpeg',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'head' }
+            ]
+          },
+          { 
+            id: 'dessin_vintage', 
+            name: 'vintage', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1738564853684x500805100845962900/0%20-%20AI%20Image%20anime%20generator-0%20Vintage%20Comic..jpg',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'vintage' }
+            ]
+          }
+        ],
+        univers: [
+          { 
+            id: 'univers_3d', 
+            name: 'animation3d', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1738130290754x925359529669461600/Cartoon%20yourself-Animation%203D.png',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'animation3d' }
+            ]
+          },
+          { 
+            id: 'univers_future', 
+            name: 'future', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1738564961243x558145837457536300/4-%20AI%20Image%20anime%20generator%20-%204%20Future%20Technology..jpg',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'future' }
+            ]
+          },
+          { 
+            id: 'univers_chinese', 
+            name: 'chinese_trad', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1738565037951x922301476010605700/5-%20AI%20Image%20anime%20generator%20-%205%20Traditional%20Chinese%20Painting%20Style.jpg',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'chinese_trad' }
+            ]
+          },
+          { 
+            id: 'univers_battle', 
+            name: 'general_battle', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1738565115416x952288200492438900/6%20-%20AI%20Image%20anime%20generator%20-%206%20General%20in%20a%20Hundred%20Battles..jpg',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'general_battle' }
+            ]
+          },
+          { 
+            id: 'univers_colorful', 
+            name: 'colorful_cartoon', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1738565590887x221935701029312600/7%20-AI%20Image%20anime%20generator%20-%20Colorful%20Cartoon.jpg',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'colorful_cartoon' }
+            ]
+          },
+          { 
+            id: 'univers_graceful', 
+            name: 'graceful_chinese', 
+            preview: 'https://445b1d92398484ce075b47fd4b139c09.cdn.bubble.io/f1738565647482x402675898065792960/8-%20AI%20Image%20anime%20generator%20-%20Graceful%20Chinese%20Style.jpg',
+            apiName: 'ailabapi',
+            apiKey: '{VITE_AILAB_API_KEY}',
+            endpoint: 'portrait/effects/portrait-animation',
+            paramsArray: [
+              { name: 'effectType', value: 'graceful_chinese' }
+            ]
+          }
+        ]
+      };
+      setEffects(defaultEffects);
+    }
+  }, [config]);
+  
+  // Fonction pour ajouter un nouvel effet
+  const handleAddEffect = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+  
+  // Fonction pour gérer le changement d'image
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Vérifier le type de fichier
+    if (!file.type.match('image.*')) {
+      notify('error', 'Veuillez sélectionner une image valide');
+      return;
+    }
+    
+    try {
+      setIsUploading(true);
+      
+      // Générer un ID unique pour l'effet
+      const effectId = `effect_${Date.now()}`;
+      
+      // Lire le fichier et redimensionner l'image
+      const resizedImageUrl = await resizeImage(file, 200, 200);
+      
+      // Mettre à jour l'état des effets
+      const updatedEffects = {
+        ...effects,
+        [activeEffectType]: {
+          ...effects[activeEffectType],
+          [effectId]: {
+            id: effectId,
+            label: file.name.split('.')[0].substring(0, 15), // Limiter la longueur du nom
+            image: resizedImageUrl,
+            apiName: '', // Nom utilisé par l'API
+            apiKey: '',  // Clé API spécifique si nécessaire
+            params: {},  // Paramètres additionnels clé/valeur
+            value: effectId
+          }
+        }
+      };
+      
+      setEffects(updatedEffects);
+      
+      // Mettre à jour la configuration
+      updateConfig({
+        ...config,
+        effects: updatedEffects
+      });
+      
+      notify('success', 'Effet ajouté avec succès');
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de l\'effet:', error);
+      notify('error', `Erreur lors de l'ajout de l'effet: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+      // Réinitialiser l'input file
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+  
+  // Fonction pour supprimer un effet
+  const handleDeleteEffect = (effectId) => {
+    // Demander confirmation
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet effet ?')) {
+      return;
+    }
+    
+    const updatedEffectsType = { ...effects[activeEffectType] };
+    delete updatedEffectsType[effectId];
+    
+    const updatedEffects = {
+      ...effects,
+      [activeEffectType]: updatedEffectsType
+    };
+    
+    setEffects(updatedEffects);
+    
+    // Mettre à jour la configuration
+    updateConfig({
+      ...config,
+      effects: updatedEffects
+    });
+    
+    notify('info', 'Effet supprimé');
+  };
+  
+  // Fonction pour éditer un effet
+  const handleEditClick = (effect) => {
+    // Adapté pour la structure des effets AILab API
+    setEditingEffect({
+      ...effect,
+      newName: effect.name || '',
+      newApiName: effect.apiName || '',
+      newEndpoint: effect.endpoint || '',
+      newApiKey: effect.apiKey || '',
+      // Utiliser directement paramsArray s'il existe, sinon créer un tableau vide
+      newParamsArray: effect.paramsArray ? [...effect.paramsArray] : []
+    });
+  };
+  
+  // Fonction pour sauvegarder les modifications d'un effet
+  const handleSaveEdit = async () => {
+    if (!editingEffect) return;
+    
+    try {
+      // Créer une copie profonde du tableau des effets actuels
+      const currentEffects = [...(effects[activeEffectType] || [])];
+      
+      // Trouver l'index de l'effet à modifier
+      const effectIndex = currentEffects.findIndex(e => e.id === editingEffect.id);
+      
+      if (effectIndex === -1) {
+        throw new Error("Effet non trouvé dans la liste");
+      }
+      
+      // Mettre à jour l'effet
+      const updatedEffect = {
+        ...currentEffects[effectIndex],
+        name: editingEffect.newName,
+        apiName: editingEffect.newApiName,
+        endpoint: editingEffect.newEndpoint,
+        apiKey: editingEffect.newApiKey,
+        paramsArray: editingEffect.newParamsArray || []
+      };
+      
+      // Si une nouvelle image a été sélectionnée
+      if (editingEffect.newImage) {
+        updatedEffect.preview = editingEffect.newImage;
+      }
+      
+      // Remplacer l'effet dans le tableau
+      currentEffects[effectIndex] = updatedEffect;
+      
+      // Mettre à jour l'état
+      const updatedEffects = {
+        ...effects,
+        [activeEffectType]: currentEffects
+      };
+      
+      setEffects(updatedEffects);
+      
+      // Mettre à jour la configuration
+      updateConfig({
+        ...config,
+        effects: updatedEffects
+      });
+      
+      notify('success', 'Effet mis à jour avec succès');
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de l\'effet:', error);
+      notify('error', `Erreur lors de la mise à jour de l'effet: ${error.message}`);
+    } finally {
+      setEditingEffect(null);
+    }
+  };
+  
+  // Fonction pour changer l'image d'un effet en cours d'édition
+  const handleEditImageChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    try {
+      // Redimensionner l'image
+      const resizedImageUrl = await resizeImage(file, 200, 200);
+      
+      setEditingEffect({
+        ...editingEffect,
+        newImage: resizedImageUrl
+      });
+    } catch (error) {
+      console.error('Erreur lors du chargement de l\'image:', error);
+      notify('error', `Erreur lors du chargement de l'image: ${error.message}`);
+    }
+  };
+  
+  // Fonction pour redimensionner une image
+  const resizeImage = (file, maxWidth, maxHeight) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        const img = new Image();
+        
+        img.onload = () => {
+          // Calculer les dimensions pour le recadrage carré
+          let size = Math.min(img.width, img.height);
+          let xOffset = (img.width - size) / 2;
+          let yOffset = (img.height - size) / 2;
+          
+          // Créer le canvas pour le recadrage et le redimensionnement
+          const canvas = document.createElement('canvas');
+          canvas.width = maxWidth;
+          canvas.height = maxHeight;
+          
+          const ctx = canvas.getContext('2d');
+          
+          // Dessiner l'image recadrée et redimensionnée
+          ctx.drawImage(
+            img,
+            xOffset, yOffset, size, size,
+            0, 0, maxWidth, maxHeight
+          );
+          
+          // Convertir en data URL
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+          resolve(dataUrl);
+        };
+        
+        img.onerror = (error) => {
+          reject(error);
+        };
+        
+        img.src = e.target.result;
+      };
+      
+      reader.onerror = (error) => {
+        reject(error);
+      };
+      
+      reader.readAsDataURL(file);
+    });
+  };
+  
+  // Fonction principale pour tester un effet
+  const testEffect = async (effect) => {
+    if (!effect) {
+      notify.error('Veuillez sélectionner un effet à tester');
+      return;
+    }
+
+    if (!testImageRef.current || !testImageRef.current.files || testImageRef.current.files.length === 0) {
+      notify.error('Veuillez sélectionner une image de test');
+      return;
+    }
+
+    setTestLoading(true);
+    setTestResult(null);
+
+    try {
+      // Sélectionner la fonction de test appropriée selon l'API
+      if (effect.apiName === 'ailabapi') {
+        await testAILabEffect(effect);
+      } else if (effect.apiName === 'lightx') {
+        await testLightXEffect(effect);
+      } else {
+        throw new Error(`API non supportée: ${effect.apiName}`);
+      }
+    } catch (error) {
+      handleApiError(error, effect.apiName);
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  // Fonction pour tester un effet avec AILab API
+  const testAILabEffect = async (effect) => {
+    const file = testImageRef.current.files[0];
+    const formData = new FormData();
+    
+    // Ajouter les paramètres spécifiques à l'effet
+    if (effect.paramsArray && effect.paramsArray.length > 0) {
+      effect.paramsArray.forEach(param => {
+        formData.append(param.name, param.value);
+      });
+    }
+    
+    // Ajouter l'image
+    formData.append('image', file);
+
+    // Log des paramètres pour débugger
+    console.log(`Test de l'effet AILab: ${effect.name}`);
+    console.log(`Endpoint: https://www.ailabapi.com/api/${effect.endpoint}`);
+    console.log('Paramètres:', effect.paramsArray);
+
+    // Notification de début de traitement
+    notify.info(`Traitement de l'image avec l'effet ${effect.name}...`);
+
+    // Faire l'appel API
+    const response = await axios.post(
+      `https://www.ailabapi.com/api/${effect.endpoint}`,
+      formData,
+      {
+        headers: {
+          'ailabapi-api-key': import.meta.env.VITE_AILAB_API_KEY,
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+
+    if (response.data.error_code !== 0) {
+      throw new Error(response.data.error_msg || 'Erreur lors du traitement de l\'image');
+    }
+
+    // Mettre à jour le résultat
+    setTestResult({
+      success: true,
+      apiName: 'AILab',
+      image_url: response.data.data.image_url,
+      message: 'Effet appliqué avec succès!',
+      details: response.data.data
+    });
+
+    notify.success(`Effet ${effect.name} testé avec succès!`);
+  };
+
+  // Fonction pour tester un effet avec LightX API
+  const testLightXEffect = async (effect) => {
+    const file = testImageRef.current.files[0];
+    const formData = new FormData();
+    
+    // Ajouter les paramètres spécifiques à l'effet LightX
+    if (effect.paramsArray && effect.paramsArray.length > 0) {
+      effect.paramsArray.forEach(param => {
+        formData.append(param.name, param.value);
+      });
+    }
+    
+    // Paramètres obligatoires pour LightX
+    formData.append('image', file);
+
+    // Log des paramètres pour débugger
+    console.log(`Test de l'effet LightX: ${effect.name}`);
+    console.log(`Endpoint: https://api.lightx.io/${effect.endpoint || 'v1/effects'}`);
+    console.log('Paramètres:', effect.paramsArray);
+
+    // Notification de début de traitement
+    notify.info(`Traitement de l'image avec l'effet LightX ${effect.name}...`);
+
+    // Faire l'appel API à LightX
+    const response = await axios.post(
+      `https://api.lightx.io/${effect.endpoint || 'v1/effects'}`,
+      formData,
+      {
+        headers: {
+          'X-API-KEY': import.meta.env.VITE_LIGHTX_API_KEY || effect.apiKey?.replace('{VITE_LIGHTX_API_KEY}', import.meta.env.VITE_LIGHTX_API_KEY),
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Erreur lors du traitement de l\'image avec LightX');
+    }
+
+    // Mettre à jour le résultat
+    setTestResult({
+      success: true,
+      apiName: 'LightX',
+      image_url: response.data.result?.url || response.data.url,
+      message: 'Effet LightX appliqué avec succès!',
+      details: response.data
+    });
+
+    notify.success(`Effet LightX ${effect.name} testé avec succès!`);
+  };
+
+  // Gestion des erreurs API centralisée
+  const handleApiError = (error, apiName) => {
+    console.error(`Erreur lors du test de l'effet ${apiName}:`, error);
+    let errorMessage = error.message || 'Erreur inconnue';
+    
+    // Améliorer les messages d'erreur courants
+    if (errorMessage.includes('Network Error')) {
+      errorMessage = 'Erreur de connexion au serveur. Vérifiez votre connexion internet.';
+    } else if (errorMessage.includes('timeout')) {
+      errorMessage = 'La requête a pris trop de temps. Essayez avec une image plus petite.';
+    } else if (errorMessage.includes('403')) {
+      errorMessage = `Accès refusé. Vérifiez votre clé API ${apiName}.`;
+    } else if (errorMessage.includes('429') || (error.response && error.response.status === 429)) {
+      errorMessage = `Limite de requêtes ${apiName} atteinte (429 Too Many Requests). Veuillez attendre quelques minutes avant de réessayer.`;
+      console.warn(`Limite de requêtes ${apiName} API atteinte:`, error);
+    }
+    
+    setTestResult({
+      success: false,
+      apiName: apiName,
+      message: `Erreur: ${errorMessage}`,
+      errorDetails: error.response?.data || {}
+    });
+    notify.error(`Erreur lors du test ${apiName}: ${errorMessage}`);
+  };
+
+  // Sauvegarder les modifications
+  const handleSaveAll = async () => {
+    try {
+      await saveScreenConfig({
+        ...config,
+        effects: effects
+      });
+      
+      notify.success('Configuration des effets sauvegardée avec succès');
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde:', error);
+      notify.error(`Erreur lors de la sauvegarde: ${error.message}`);
+    }
+  };
+  
+  // Obtenir la liste des effets du type actif
+  const getActiveEffects = () => {
+    if (!effects || !effects[activeEffectType]) {
+      return [];
+    }
+    
+    // Convertir l'objet en tableau
+    return Object.values(effects[activeEffectType]);
+  };
+  
+  // Helpers pour gérer la liste de paramètres dynamiques
+  const handleAddParamField = () => {
+    setEditingEffect(prev => ({
+      ...prev,
+      paramsArray: [...(prev?.paramsArray || []), { key: '', value: '' }]
+    }));
+  };
+
+  const handleParamKeyChange = (index, newKey) => {
+    setEditingEffect(prev => {
+      const updated = [...(prev?.paramsArray || [])];
+      updated[index] = { ...updated[index], key: newKey };
+      return { ...prev, paramsArray: updated };
+    });
+  };
+
+  const handleParamValueChange = (index, newValue) => {
+    setEditingEffect(prev => {
+      const updated = [...(prev?.paramsArray || [])];
+      updated[index] = { ...updated[index], value: newValue };
+      return { ...prev, paramsArray: updated };
+    });
+  };
+
+  const handleRemoveParamField = (index) => {
+    setEditingEffect(prev => {
+      const updated = [...(prev?.paramsArray || [])];
+      updated.splice(index, 1);
+      return { ...prev, paramsArray: updated };
+    });
+  };
+  
+            <button
+              onClick={() => handleEditEffect(effect)}
+              className="p-1 text-purple-400 hover:text-purple-300 transition-colors"
+            >
+              <Edit size={18} />
+            </button>
+          </div>
+          <p className="text-sm text-gray-400">{effect.description}</p>
+        </div>
+      ))}
+    </div>
+    {/* Message si aucun effet n'est disponible */}
+    {getActiveEffects().length === 0 && (
+      <div className="bg-purple-50/20 dark:bg-gray-800/50 mt-4 rounded-lg p-8 text-center border border-purple-100/20 dark:border-gray-700 shadow-sm">
+        <div className="flex justify-center mb-4">
+          <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
+            <AlertTriangle size={24} />
+          </div>
+        </div>
+        <h3 className="text-md font-medium mb-2 text-purple-800 dark:text-purple-400">Zone de test</h3>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
+          Aucun effet configuré
+        </p>
+      </div>
+    )}
+  </div>
+  {/* Pied de page avec informations */}
+  <div className="w-full bg-gray-700 text-gray-200 p-2 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm">
+    <div className="text-purple-500 dark:text-purple-400 flex-shrink-0">
+      <Info size={20} />
+    </div>
+    <div className="text-sm text-gray-600 dark:text-gray-400">
+      <p className="mb-1">
+        Les images seront automatiquement recadrées en carré et redimensionnées en 200x200 pixels.
+      </p>
+      <p>
+        Pour une meilleure qualité, utilisez des images de dimensions égales (carrées) et de haute résolution.
+      </p>
+    </div>
+  </div>
+  {/* Modal d'édition */}
+  <AnimatePresence>
+    {editingEffect && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto"
+        onClick={(e) => e.target === e.currentTarget && setEditingEffect(null)}
+      >
+        <motion.div
+          initial={{ scale: 0.9, y: 20 }}
+          animate={{ scale: 1, y: 0 }}
+          exit={{ scale: 0.9, y: 20 }}
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* En-tête du modal */}
+          <div className="bg-gradient-to-r from-purple-700 to-purple-600 p-4 text-white rounded-t-lg">
+            <h3 className="text-lg font-medium tracking-wide">Modifier l'effet</h3>
+          </div>
+          {/* Contenu du modal */}
+          <div className="p-4 sm:p-6 overflow-y-auto">
+            {/* Prévisualisation de l'image */}
+            <div className="aspect-square max-w-[280px] mx-auto bg-gray-800 rounded-lg p-3 overflow-hidden shadow-md hover:shadow-lg relative group border border-gray-700 hover:border-purple-500/40 transition-all duration-300">
+              <img
+                src={editingEffect.newImage || editingEffect.preview}
+                alt={editingEffect.name}
+                className="w-full h-full object-cover"
+              />
+              {/* Bouton pour changer l'image */}
+              <button
+                onClick={() => editFileInputRef.current.click()}
+                className="absolute bottom-3 right-3 bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 p-2 rounded-full shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+              >
+                <Upload size={18} />
+              </button>
+            </div>
+            {/* Champ pour le nom de l'effet */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Nom de l'effet (paramètre de l'API)
+              </label>
+              <input
+                type="text"
+                value={editingEffect.newName}
+                onChange={(e) => setEditingEffect({ ...editingEffect, newName: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                placeholder="Nom exact dans l'API (ex: jpcartoon)"
+              />
+            </div>
+            {/* Champ pour le nom de l'API */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Source API
+              </label>
+              <input
+                type="text"
+                value={editingEffect.newApiName}
+                onChange={(e) => setEditingEffect({ ...editingEffect, newApiName: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                placeholder="Nom de l'API (ex: ailabapi)"
+              />
+            </div>
+            {/* Champ pour l'endpoint */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Endpoint API
+              </label>
+              <input
+                type="text"
+                value={editingEffect.newEndpoint}
+                onChange={(e) => setEditingEffect({ ...editingEffect, newEndpoint: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                placeholder="Endpoint (ex: portrait/effects/portrait-animation)"
+              />
+            </div>
+            {/* Champ pour la clé API */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Clé API
+              </label>
+              <input
+                type="text"
+                value={editingEffect.newApiKey}
+                onChange={(e) => setEditingEffect({ ...editingEffect, newApiKey: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                placeholder="Clé API (ex: {VITE_AILAB_API_KEY})"
+              />
+            </div>
+            {/* Paramètres API */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Paramètres API
+              </label>
+              <div className="bg-gradient-to-r from-purple-700 to-purple-600 p-4 text-white rounded-t-lg">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-0">
+                  Ces paramètres seront envoyés à l'API lors de la requête
+                </p>
+              </div>
+              {(editingEffect.newParamsArray || []).map((param, index) => (
+                <div key={index} className="flex flex-col sm:flex-row gap-2 mb-3 border border-gray-200 dark:border-gray-700 p-2 rounded-md">
+                  <div className="w-full sm:w-auto sm:flex-1">
+                    <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">
+                      Nom:
+                    </label>
+                    <input
+                      type="text"
+                      value={param.name}
+                      onChange={(e) => {
+                        const updatedParams = [...editingEffect.newParamsArray];
+                        updatedParams[index] = { ...updatedParams[index], name: e.target.value };
+                        setEditingEffect({ ...editingEffect, newParamsArray: updatedParams });
+                      }}
+                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                      placeholder="effectType"
+                    />
+                  </div>
+                  <div className="w-full sm:w-auto sm:flex-1">
+                    <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">
+                      Valeur:
+                    </label>
+                    <input
+                      type="text"
+                      value={param.value}
+                      onChange={(e) => {
+                        const updatedParams = [...editingEffect.newParamsArray];
+                        updatedParams[index] = { ...updatedParams[index], value: e.target.value };
+                        setEditingEffect({ ...editingEffect, newParamsArray: updatedParams });
+                      }}
+                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                      placeholder="jpcartoon"
+                    />
+                  </div>
+                  <div className="flex justify-end mt-2 sm:mt-0 sm:self-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updatedParams = [...editingEffect.newParamsArray];
+                        updatedParams.splice(index, 1);
+                        setEditingEffect({ ...editingEffect, newParamsArray: updatedParams });
+                      }}
+                      className="p-1 text-purple-400 hover:text-purple-300 transition-colors"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  const updatedParams = [...(editingEffect.newParamsArray || [])];
+                  updatedParams.push({ name: '', value: '' });
+                  setEditingEffect({ ...editingEffect, newParamsArray: updatedParams });
+                }}
+                className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md shadow-sm hover:shadow text-sm transition-all"
+              >
+                + Ajouter un paramètre
+              </button>
+            </div>
+            {/* Boutons d'action */}
+            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-6">
+              <button
+                onClick={() => setEditingEffect(null)}
+                className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 order-2 sm:order-1"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="w-full sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md shadow-sm order-1 sm:order-2"
+              >
+                Enregistrer
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+</motion.div>
+                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-6">
+                  <button
+                    onClick={() => setEditingEffect(null)}
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 order-2 sm:order-1"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    className="w-full sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md shadow-sm order-1 sm:order-2"
+                  >
+                    Enregistrer
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
+export default AdminEffect;

@@ -1,0 +1,229 @@
+import React, { useState, useRef } from 'react';
+import { 
+  Monitor, RefreshCw, Save, Download, Upload, 
+  Camera, Palette, Settings
+} from 'lucide-react';
+import { TabItem } from './ScreenComponents';
+import { ScreenConfigProvider, useScreenConfig } from './screens/ScreenConfigProvider';
+import GeneralSettings from './screens/GeneralSettings';
+import CaptureSettings from './screens/CaptureSettings';
+import AppearanceSettings from './screens/AppearanceSettings';
+import AdvancedSettings from './screens/AdvancedSettings';
+import { notify } from '../../lib/notifications';
+
+/**
+ * Composant interne qui utilise le contexte ScreenConfigProvider
+ */
+const AdminEcranContent = () => {
+  const { 
+    config, 
+    isLoading, 
+    isSaving, 
+    exportConfig, 
+    importConfig, 
+    saveScreenConfig 
+  } = useScreenConfig();
+  
+  const [activeTab, setActiveTab] = useState('general');
+  const importInputRef = useRef(null);
+  
+  const handleImportClick = () => {
+    importInputRef.current.click();
+  };
+  
+  const handleImportFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    try {
+      const reader = new FileReader();
+      
+      reader.onload = async (event) => {
+        try {
+          const jsonConfig = JSON.parse(event.target.result);
+          await importConfig(jsonConfig);
+        } catch (error) {
+          console.error('Erreur lors du parsing du fichier JSON:', error);
+          notify.error('Format de fichier invalide');
+        }
+      };
+      
+      reader.readAsText(file);
+      e.target.value = '';
+    } catch (error) {
+      console.error('Erreur lors de l\'importation:', error);
+      notify.error('Erreur lors de l\'importation');
+    }
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="flex flex-col items-center">
+          <RefreshCw size={40} className="text-purple-600 animate-spin mb-4" />
+          <p className="text-gray-600">Chargement de la configuration...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!config) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="flex flex-col items-center">
+          <p className="text-red-600 mb-2">Erreur de chargement de la configuration</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="font-sans bg-gray-50 rounded-lg shadow-lg overflow-hidden border border-gray-200">
+      {/* En-tête */}
+      <div className="bg-purple-700 p-4 text-white">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white flex items-center">
+            <Monitor className="mr-2" /> Configuration de l'écran
+          </h2>
+          <div className="flex space-x-2">
+            <button 
+              onClick={handleImportClick}
+              className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center transition-colors"
+              title="Importer une configuration depuis un fichier JSON"
+            >
+              <Upload className="mr-1" size={18} />
+              Importer
+            </button>
+            <input 
+              type="file" 
+              ref={importInputRef} 
+              onChange={handleImportFile} 
+              accept=".json" 
+              className="hidden" 
+            />
+            
+            <button 
+              onClick={exportConfig}
+              className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center transition-colors"
+              title="Exporter la configuration actuelle en fichier JSON"
+            >
+              <Download className="mr-1" size={18} />
+              Exporter
+            </button>
+            
+            <button 
+              onClick={() => saveScreenConfig(config)}
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center transition-colors"
+              disabled={isSaving}
+              title="Sauvegarder les modifications dans la base de données"
+            >
+              {isSaving ? <RefreshCw className="mr-2 animate-spin" /> : <Save className="mr-2" />}
+              {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+            </button>
+          </div>
+        </div>
+        
+        {/* Onglets */}
+        <div className="flex border-b border-purple-600">
+          <TabItem 
+            icon={<Monitor size={18} />}
+            label="Général" 
+            active={activeTab === 'general'} 
+            onClick={() => setActiveTab('general')}
+          />
+          <TabItem 
+            icon={<Camera size={18} />}
+            label="Capture" 
+            active={activeTab === 'capture'} 
+            onClick={() => setActiveTab('capture')}
+          />
+          <TabItem 
+            icon={<Palette size={18} />}
+            label="Apparence" 
+            active={activeTab === 'appearance'} 
+            onClick={() => setActiveTab('appearance')}
+          />
+          <TabItem 
+            icon={<Settings size={18} />}
+            label="Avancé" 
+            active={activeTab === 'advanced'} 
+            onClick={() => setActiveTab('advanced')}
+          />
+        </div>
+      </div>
+      
+      {/* Contenu principal */}
+      <div className="p-6">
+        {/* Onglet Général */}
+        {activeTab === 'general' && (
+          <div className="space-y-6">
+            <GeneralSettings />
+          </div>
+        )}
+        
+        {/* Onglet Capture */}
+        {activeTab === 'capture' && (
+          <div className="space-y-6">
+            <CaptureSettings />
+          </div>
+        )}
+        
+        {/* Onglet Apparence */}
+        {activeTab === 'appearance' && (
+          <div className="space-y-6">
+            <AppearanceSettings />
+          </div>
+        )}
+        
+        {/* Onglet Avancé */}
+        {activeTab === 'advanced' && (
+          <div className="space-y-6">
+            <AdvancedSettings />
+          </div>
+        )}
+      </div>
+      
+      {/* Pied de page */}
+      <div className="bg-gray-100 p-4 border-t border-gray-200 flex justify-between items-center">
+        <div className="text-sm text-gray-600">
+          {isLoading ? (
+            <div className="flex items-center">
+              <RefreshCw size={16} className="animate-spin mr-2" />
+              Chargement...
+            </div>
+          ) : `Écran: ${config.name} | Type: ${config.type}`}
+        </div>
+        <button 
+          onClick={() => saveScreenConfig(config)}
+          disabled={isSaving}
+          className={`p-2 px-4 rounded-md flex items-center ${
+            isSaving ? 'bg-purple-900 opacity-70' : 'bg-purple-600 hover:bg-purple-700'
+          } text-white transition-colors`}
+        >
+          <Save size={16} className="mr-1" />
+          {isSaving ? 'Enregistrement...' : 'Enregistrer les modifications'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Composant principal AdminEcran
+ * Wrapper qui fournit le contexte de configuration d'écran
+ */
+const AdminEcran = ({ screenId = 'vertical1', eventId }) => {
+  return (
+    <ScreenConfigProvider screenId={screenId} eventId={eventId}>
+      <AdminEcranContent />
+    </ScreenConfigProvider>
+  );
+};
+
+export default AdminEcran;

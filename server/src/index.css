@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+}
+
+@layer components {
+  .touch-button {
+    @apply active:scale-95 transition-transform select-none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  .photo-card {
+    @apply relative overflow-hidden rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow aspect-square;
+  }
+
+  .photo-card img {
+    @apply w-full h-full object-cover transition-transform duration-300;
+  }
+
+  .photo-card:hover img {
+    @apply scale-105;
+  }
+
+  .photo-overlay {
+    @apply absolute inset-0 bg-black bg-opacity-0 flex items-center justify-center opacity-0 transition-all duration-300;
+  }
+
+  .photo-card:hover .photo-overlay {
+    @apply bg-opacity-40 opacity-100;
+  }
+
+  .photo-actions {
+    @apply flex gap-2 scale-90 opacity-0 transition-all duration-300;
+  }
+
+  .photo-overlay:hover .photo-actions {
+    @apply scale-100 opacity-100;
+  }
+
+  .action-button {
+    @apply p-2 bg-white rounded-full hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl touch-button;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity duration-300;
+  }
+
+  .modal-content {
+    @apply bg-white rounded-2xl shadow-xl max-w-4xl w-full mx-auto transform transition-all duration-300;
+  }
+
+  .form-input {
+    @apply w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-lg;
+  }
+
+  .form-button {
+    @apply w-full py-3 px-6 rounded-lg bg-purple-600 text-white font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 touch-button;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-2 px-4 py-3 rounded-lg text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors touch-button;
+  }
+
+  .nav-link.active {
+    @apply bg-purple-100 text-purple-600 font-medium;
+  }
+}
+
+@layer utilities {
+  .photo-grid {
+    @apply grid gap-4;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  }
+
+  .infinite-scroll-container {
+    @apply overflow-y-auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  .portrait-mode {
+    transform: rotate(90deg);
+    transform-origin: center;
+    width: 100vh;
+    height: 100vw;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    overflow: hidden;
+    
+    /* Ajustement pour recentrer */
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
+}
+

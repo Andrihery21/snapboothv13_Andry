@@ -1,0 +1,764 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Trash2, Upload, Edit, Plus, Save, AlertTriangle, Info, Camera } from 'lucide-react';
+import { useScreenConfig } from "../admin/screens/ScreenConfigProvider";
+import { notify } from '../../lib/notifications';
+import axios from 'axios';
+
+// Variants d'animation
+const fadeIn = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+};
+
+const itemVariant = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.3 } }
+};
+
+/**
+ * Composant de gestion des effets pour AdminEcran
+ */
+const AdminEffect = () => {
+  const { config, updateConfig, saveScreenConfig } = useScreenConfig();
+  
+  // Référence pour l'input file
+  const fileInputRef = useRef(null);
+  const editFileInputRef = useRef(null);
+  const testImageRef = useRef(null);
+  
+  // États pour la gestion des effets
+  const [activeEffectType, setActiveEffectType] = useState('cartoon');
+  const [effects, setEffects] = useState({});
+  const [editingEffect, setEditingEffect] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [testLoading, setTestLoading] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  
+  // Types d'effets disponibles
+  const effectTypes = [
+    { id: 'cartoon', label: 'Cartoon', icon: '🎭' },
+    { id: 'caricature', label: 'Caricature', icon: '🤡' },
+    { id: 'dessin', label: 'Dessin', icon: '✏️' },
+    { id: 'univers', label: 'Univers', icon: '🌌' }
+  ];
+
+  // Charger les effets depuis la configuration
+  useEffect(() => {
+    if (config && config.effects) {
+      setEffects(config.effects);
+    } else {
+      // Initialiser avec des objets vides si aucun effet n'est configuré
+      const defaultEffects = {
+        cartoon: [],
+        caricature: [],
+        dessin: [],
+        univers: []
+      };
+      setEffects(defaultEffects);
+    }
+  }, [config]);
+
+  // Fonction pour ajouter un nouvel effet
+  const handleAddEffect = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Fonction pour gérer le changement d'image
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+
+    try {
+      // Redimensionner l'image
+      const resizedImage = await resizeImage(file, 200, 200);
+      const reader = new FileReader();
+
+      reader.onload = (event) => {
+        const uniqueId = `${activeEffectType}_${Date.now()}`;
+        const newEffect = {
+          id: uniqueId,
+          name: 'Nouvel effet',
+          description: 'Description de l\'effet',
+          preview: event.target.result,
+          provider: 'AILab',
+          params: {},
+          paramsArray: []
+        };
+
+        setEffects(prev => {
+          const currentEffects = [...(prev[activeEffectType] || [])];
+          return {
+            ...prev,
+            [activeEffectType]: [...currentEffects, newEffect]
+          };
+        });
+
+        setIsUploading(false);
+        notify.success('Effet ajouté avec succès');
+      };
+
+      reader.readAsDataURL(resizedImage);
+    } catch (error) {
+      setIsUploading(false);
+      notify.error('Erreur lors du traitement de l\'image');
+      console.error('Erreur de traitement de l\'image:', error);
+    }
+  };
+
+  // Fonction pour supprimer un effet
+  const handleDeleteEffect = (effectId) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet effet ?')) {
+      setEffects(prev => {
+        const updatedEffects = { ...prev };
+        updatedEffects[activeEffectType] = prev[activeEffectType].filter(
+          effect => effect.id !== effectId
+        );
+        return updatedEffects;
+      });
+      
+      notify.success('Effet supprimé avec succès');
+    }
+  };
+
+  // Fonction pour éditer un effet
+  const handleEditEffect = (effect) => {
+    // Extraire les paires clé-valeur des paramètres vers un tableau
+    const paramsArray = Object.entries(effect.params || {}).map(([key, value]) => ({
+      key,
+      value
+    }));
+    
+    setEditingEffect({ ...effect, paramsArray });
+  };
+
+  // Fonction pour sauvegarder les modifications d'un effet
+  const handleSaveEdit = () => {
+    if (!editingEffect) return;
+    
+    // Convertir le tableau de paramètres en objet
+    const paramsObject = {};
+    editingEffect.paramsArray.forEach(param => {
+      if (param.key.trim() !== '') {
+        paramsObject[param.key.trim()] = param.value;
+      }
+    });
+    
+    setEffects(prev => {
+      const updatedEffects = { ...prev };
+      const effectTypeArray = [...(prev[activeEffectType] || [])];
+      
+      const index = effectTypeArray.findIndex(e => e.id === editingEffect.id);
+      if (index !== -1) {
+        effectTypeArray[index] = {
+          ...effectTypeArray[index],
+          name: editingEffect.name,
+          description: editingEffect.description,
+          provider: editingEffect.provider,
+          params: paramsObject,
+          preview: editingEffect.newImage || editingEffect.preview
+        };
+      }
+      
+      updatedEffects[activeEffectType] = effectTypeArray;
+      return updatedEffects;
+    });
+    
+    setEditingEffect(null);
+    notify.success('Effet modifié avec succès');
+  };
+
+  // Fonction pour changer l'image d'un effet en cours d'édition
+  const handleEditImageChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    try {
+      const resizedImage = await resizeImage(file, 200, 200);
+      const reader = new FileReader();
+      
+      reader.onload = (event) => {
+        setEditingEffect(prev => ({
+          ...prev,
+          newImage: event.target.result
+        }));
+      };
+      
+      reader.readAsDataURL(resizedImage);
+    } catch (error) {
+      notify.error('Erreur lors du traitement de l\'image');
+      console.error('Erreur de traitement de l\'image:', error);
+    }
+  };
+
+  // Fonction pour redimensionner une image
+  const resizeImage = (file, maxWidth, maxHeight) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        img.src = e.target.result;
+        
+        img.onload = () => {
+          // Déterminer les nouvelles dimensions
+          let width = img.width;
+          let height = img.height;
+          
+          // Si l'image n'est pas carrée, la recadrer
+          const size = Math.min(width, height);
+          const canvas = document.createElement('canvas');
+          canvas.width = maxWidth;
+          canvas.height = maxHeight;
+          
+          const ctx = canvas.getContext('2d');
+          
+          // Recadrer l'image pour la rendre carrée
+          const offsetX = (width - size) / 2;
+          const offsetY = (height - size) / 2;
+          
+          ctx.drawImage(
+            img,
+            offsetX, offsetY, size, size,
+            0, 0, maxWidth, maxHeight
+          );
+          
+          canvas.toBlob(resolve, file.type);
+        };
+        
+        img.onerror = reject;
+      };
+      
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Fonction principale pour tester un effet
+  const testEffect = (effect) => {
+    if (testLoading) return;
+    
+    const testImage = testImageRef.current?.files?.[0];
+    if (!testImage) {
+      notify.warning('Veuillez sélectionner une image de test');
+      return;
+    }
+    
+    setTestLoading(true);
+    
+    // Déterminer quel API utiliser en fonction du provider configuré
+    if (effect.provider === 'LightX') {
+      testLightXEffect(effect);
+    } else {
+      // Par défaut, utiliser AILab
+      testAILabEffect(effect);
+    }
+  };
+
+  // Fonction pour tester un effet avec AILab API
+  const testAILabEffect = async (effect) => {
+    try {
+      const testImage = testImageRef.current?.files?.[0];
+      if (!testImage) return;
+      
+      const formData = new FormData();
+      formData.append('image', testImage);
+      formData.append('style', effect.name);
+      
+      // Ajouter les paramètres personnalisés
+      if (effect.params) {
+        Object.entries(effect.params).forEach(([key, value]) => {
+          formData.append(key, value);
+        });
+      }
+      
+      const response = await axios.post(
+        'https://api.ailab.com/v1/cartoonify',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'x-api-key': process.env.REACT_APP_AILAB_API_KEY || ''
+          },
+          timeout: 30000
+        }
+      );
+      
+      if (response.data && response.data.result) {
+        setTestResult({
+          image: response.data.result,
+          provider: 'AILab',
+          effectName: effect.name,
+          success: true
+        });
+        notify.success('Test effectué avec succès');
+      } else {
+        notify.error('Erreur: Aucune image retournée');
+      }
+    } catch (error) {
+      handleApiError(error, 'AILab');
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  // Fonction pour tester un effet avec LightX API
+  const testLightXEffect = async (effect) => {
+    try {
+      const testImage = testImageRef.current?.files?.[0];
+      if (!testImage) return;
+      
+      const reader = new FileReader();
+      reader.readAsDataURL(testImage);
+      
+      reader.onload = async () => {
+        const base64Image = reader.result.split(',')[1];
+        
+        const requestData = {
+          image: base64Image,
+          prompt: effect.name,
+          ...effect.params
+        };
+        
+        const response = await axios.post(
+          'https://api.lightx.ai/v1/generate',
+          requestData,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.REACT_APP_LIGHTX_API_KEY || ''}`
+            },
+            timeout: 30000
+          }
+        );
+        
+        if (response.data && response.data.image) {
+          setTestResult({
+            image: `data:image/jpeg;base64,${response.data.image}`,
+            provider: 'LightX',
+            effectName: effect.name,
+            success: true
+          });
+          notify.success('Test effectué avec succès');
+        } else {
+          notify.error('Erreur: Aucune image retournée');
+        }
+        
+        setTestLoading(false);
+      };
+    } catch (error) {
+      handleApiError(error, 'LightX');
+      setTestLoading(false);
+    }
+  };
+
+  // Gestion des erreurs API centralisée
+  const handleApiError = (error, apiName) => {
+    console.error(`Erreur API ${apiName}:`, error);
+    
+    if (error.response) {
+      // Erreur de réponse du serveur
+      const status = error.response.status;
+      
+      if (status === 403) {
+        notify.error(`Erreur d'authentification: Clé API invalide ou expirée`);
+      } else if (status === 429) {
+        notify.error(`Limite d'appels API dépassée. Réessayez plus tard.`);
+      } else {
+        notify.error(`Erreur du serveur ${apiName}: ${error.response.data?.message || status}`);
+      }
+    } else if (error.request) {
+      // Pas de réponse reçue
+      notify.error(`Aucune réponse de l'API ${apiName}. Vérifiez votre connexion.`);
+    } else {
+      // Erreur dans la configuration de la requête
+      notify.error(`Erreur de configuration: ${error.message}`);
+    }
+  };
+
+  // Sauvegarder les modifications
+  const handleSaveAll = async () => {
+    try {
+      updateConfig({ effects });
+      await saveScreenConfig();
+      notify.success('Configuration sauvegardée avec succès');
+    } catch (error) {
+      notify.error('Erreur lors de la sauvegarde');
+      console.error('Erreur de sauvegarde:', error);
+    }
+  };
+
+  // Obtenir la liste des effets du type actif
+  const getActiveEffects = () => {
+    return effects[activeEffectType] || [];
+  };
+
+  // Helpers pour gérer la liste de paramètres dynamiques
+  const handleAddParamField = () => {
+    setEditingEffect(prev => ({
+      ...prev,
+      paramsArray: [...(prev.paramsArray || []), { key: '', value: '' }]
+    }));
+  };
+
+  const handleParamKeyChange = (index, newKey) => {
+    setEditingEffect(prev => {
+      const updated = [...prev.paramsArray];
+      updated[index] = { ...updated[index], key: newKey };
+      return { ...prev, paramsArray: updated };
+    });
+  };
+
+  const handleParamValueChange = (index, newValue) => {
+    setEditingEffect(prev => {
+      const updated = [...prev.paramsArray];
+      updated[index] = { ...updated[index], value: newValue };
+      return { ...prev, paramsArray: updated };
+    });
+  };
+
+  const handleRemoveParamField = (index) => {
+    setEditingEffect(prev => {
+      const updated = prev.paramsArray.filter((_, i) => i !== index);
+      return { ...prev, paramsArray: updated };
+    });
+  };
+  
+  // Rendu du composant
+  return (
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={fadeIn}
+      className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700"
+    >
+      <div className="bg-gradient-to-r from-purple-700 to-purple-600 p-4 text-white">
+        <div className="flex justify-between items-center">
+          <h2 className="text-lg font-medium tracking-wide">Effets disponibles</h2>
+          
+          <div className="flex gap-2">
+            <button
+              onClick={handleAddEffect}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-md flex items-center shadow-sm hover:shadow-md transition-all duration-200"
+            >
+              <Plus size={18} className="mr-1" /> Ajouter
+            </button>
+            <button
+              onClick={handleSaveAll}
+              className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md flex items-center shadow-sm hover:shadow-md transition-all duration-200"
+            >
+              <Save size={18} className="mr-1" /> Sauvegarder
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div className="p-4">
+        {/* Input file caché */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept="image/*"
+          className="hidden"
+        />
+        
+        {/* Onglets de type d'effet */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {effectTypes.map(type => (
+            <button
+              key={type.id}
+              onClick={() => setActiveEffectType(type.id)}
+              className={`px-3 py-1.5 rounded-md capitalize transition-colors ${activeEffectType === type.id 
+                ? 'bg-purple-600 text-white' 
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
+            >
+              <span className="mr-1">{type.icon}</span>
+              {type.label}
+            </button>
+          ))}
+        </div>
+        
+        {/* Zone de test d'effet */}
+        <div className="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700 shadow-md">
+          <h3 className="text-md font-medium mb-3 text-white">Test d'effet</h3>
+          
+          <div className="mb-4">
+            <input
+              type="file"
+              ref={testImageRef}
+              accept="image/*"
+              className="hidden"
+            />
+            
+            <button 
+              onClick={() => testImageRef.current?.click()}
+              className="w-full border-2 border-dashed border-gray-600 hover:border-purple-500 p-4 rounded-lg text-gray-400 hover:text-purple-300 transition-colors flex flex-col items-center justify-center"
+            >
+              <Upload size={24} className="mb-2" />
+              <span>Choisir une image pour tester</span>
+            </button>
+          </div>
+          
+          {testResult && testResult.success && (
+            <div className="mb-4 p-3 bg-gray-900 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-purple-300">Résultat du test: {testResult.effectName}</h4>
+                <span className="px-2 py-0.5 bg-purple-800 text-xs rounded text-purple-200">{testResult.provider}</span>
+              </div>
+              <div className="aspect-square max-w-[280px] mx-auto bg-black rounded overflow-hidden">
+                <img 
+                  src={testResult.image} 
+                  alt="Résultat" 
+                  className="w-full h-full object-contain" 
+                />
+              </div>
+            </div>
+          )}
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {getActiveEffects().map(effect => (
+              <div 
+                key={effect.id} 
+                className="aspect-square max-w-[280px] mx-auto bg-gray-800 rounded-lg p-3 overflow-hidden shadow-md hover:shadow-lg relative group border border-gray-700 hover:border-purple-500/40 transition-all duration-300"
+              >
+                {effect.preview && (
+                  <img 
+                    src={effect.preview} 
+                    alt={effect.name} 
+                    className="w-full h-full object-cover rounded" 
+                  />
+                )}
+                
+                <div className="absolute inset-0 flex flex-col justify-between p-3 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all rounded">
+                  <div className="flex justify-between items-start opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="bg-black bg-opacity-50 rounded px-2 py-1 text-white text-sm font-medium">
+                      {effect.name}
+                    </div>
+                    
+                    <div className="flex space-x-1">
+                      <button
+                        onClick={() => handleEditEffect(effect)}
+                        className="p-1 text-purple-400 hover:text-purple-300 transition-colors bg-black bg-opacity-50 rounded"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEffect(effect.id)}
+                        className="p-1 text-red-400 hover:text-red-300 transition-colors bg-black bg-opacity-50 rounded"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-center items-end opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => testEffect(effect)}
+                      className={`px-2 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 transition-colors ${testLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={testLoading}
+                    >
+                      {testLoading ? 'Test en cours...' : 'Tester'}
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="absolute bottom-0 left-0 right-0 p-2 bg-black bg-opacity-70">
+                  <p className="text-xs text-gray-300 truncate">{effect.description || 'Aucune description'}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Message si aucun effet n'est disponible */}
+        {getActiveEffects().length === 0 && (
+          <div className="bg-purple-50/20 dark:bg-gray-800/50 mt-4 rounded-lg p-8 text-center border border-purple-100/20 dark:border-gray-700 shadow-sm">
+            <div className="flex justify-center mb-4">
+              <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                <AlertTriangle size={24} />
+              </div>
+            </div>
+            <h3 className="text-md font-medium mb-2 text-purple-800 dark:text-purple-400">Aucun effet disponible</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Aucun effet configuré pour le type {activeEffectType}. Cliquez sur "Ajouter" pour créer un nouvel effet.
+            </p>
+          </div>
+        )}
+      </div>
+      
+      {/* Pied de page avec informations */}
+      <div className="p-4 bg-gray-100 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 text-sm border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-start space-x-2">
+          <div className="text-purple-500 dark:text-purple-400 flex-shrink-0 mt-0.5">
+            <Info size={16} />
+          </div>
+          <div>
+            <p className="mb-1">
+              Les images seront automatiquement recadrées en carré et redimensionnées en 200x200 pixels.
+            </p>
+            <p>
+              Pour une meilleure qualité, utilisez des images de dimensions égales (carrées) et de haute résolution.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      {/* Modal d'édition */}
+      <AnimatePresence>
+        {editingEffect && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto"
+            onClick={(e) => e.target === e.currentTarget && setEditingEffect(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* En-tête du modal */}
+              <div className="bg-gradient-to-r from-purple-700 to-purple-600 p-4 text-white rounded-t-lg">
+                <h3 className="text-lg font-medium tracking-wide">Modifier l'effet</h3>
+              </div>
+              
+              {/* Contenu du modal */}
+              <div className="p-4 sm:p-6 overflow-y-auto">
+                {/* Prévisualisation de l'image */}
+                <div className="aspect-square max-w-[280px] mx-auto bg-gray-800 rounded-lg p-3 overflow-hidden shadow-md hover:shadow-lg relative group border border-gray-700 hover:border-purple-500/40 transition-all duration-300">
+                  <img
+                    src={editingEffect.newImage || editingEffect.preview}
+                    alt={editingEffect.name}
+                    className="w-full h-full object-cover rounded"
+                  />
+                  
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all rounded">
+                    <input
+                      type="file"
+                      ref={editFileInputRef}
+                      onChange={handleEditImageChange}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => editFileInputRef.current?.click()}
+                      className="p-2 rounded-full bg-purple-600 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-purple-500"
+                    >
+                      <Camera size={20} />
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Formulaire d'édition */}
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Nom de l'effet
+                    </label>
+                    <input
+                      type="text"
+                      value={editingEffect.name}
+                      onChange={(e) => setEditingEffect({ ...editingEffect, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      value={editingEffect.description || ''}
+                      onChange={(e) => setEditingEffect({ ...editingEffect, description: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 h-20"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Fournisseur API
+                    </label>
+                    <select
+                      value={editingEffect.provider || 'AILab'}
+                      onChange={(e) => setEditingEffect({ ...editingEffect, provider: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                    >
+                      <option value="AILab">AILab</option>
+                      <option value="LightX">LightX</option>
+                    </select>
+                  </div>
+                </div>
+                
+                {/* Gestion des paramètres */}
+                <div className="mb-4 mt-6">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Paramètres API
+                    </label>
+                    <button
+                      onClick={handleAddParamField}
+                      className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-2 py-1 rounded"
+                    >
+                      + Ajouter
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {editingEffect.paramsArray.map((param, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          placeholder="Clé"
+                          value={param.key}
+                          onChange={(e) => handleParamKeyChange(index, e.target.value)}
+                          className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Valeur"
+                          value={param.value}
+                          onChange={(e) => handleParamValueChange(index, e.target.value)}
+                          className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm"
+                        />
+                        <button
+                          onClick={() => handleRemoveParamField(index)}
+                          className="p-1 text-red-500 hover:text-red-600"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Boutons d'action */}
+                <div className="flex justify-end mt-6 space-x-2">
+                  <button
+                    onClick={() => setEditingEffect(null)}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md shadow-sm hover:shadow transition-all"
+                  >
+                    Enregistrer
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
+export default AdminEffect;

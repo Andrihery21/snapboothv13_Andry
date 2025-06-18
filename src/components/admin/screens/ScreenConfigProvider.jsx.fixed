@@ -1,0 +1,526 @@
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
+import { supabase } from '../../../lib/supabase';
+import { notify } from '../../../lib/notifications';
+import { Loader2 } from 'lucide-react';
+
+// Mapping des identifiants d'écran aux UUIDs dans la base de données
+const SCREEN_UUID_MAP = {
+  'horizontal1': '1f8f7e9a-5d3b-4c1a-8c4e-6f2d3b1a5c4e', // Écran Univers
+  'vertical1': '2a9e8f7b-6c4d-5e2f-9d3a-7b5c4d3e2f1a',   // Écran Cartoon/Glow Up
+  'vertical2': '3b0f9e8c-7d5e-6f3e-0e4b-8c6d5e4f3e2b',   // Écran Dessin/Noir & Blanc
+  'vertical3': '4c1a0f9d-8e6f-7e4e-1f5c-9d7e6f5e4e3c',   // Écran Caricatures/Normal
+  'props': '5d2b1e0a-9f7e-8d6c-7b5a-2c1d0e9f8a7b',       // Écran Props
+  'video': '6e3c2f1b-0a8f-9e7d-8c6b-3d2e1f0a9b8c'       // Écran Vidéo
+};
+
+// Mapping des UUIDs aux noms d'écrans pour une meilleure lisibilité
+const SCREEN_NAME_MAP = {
+  '1f8f7e9a-5d3b-4c1a-8c4e-6f2d3b1a5c4e': 'Écran Univers (Horizontal)',
+  '2a9e8f7b-6c4d-5e2f-9d3a-7b5c4d3e2f1a': 'Écran Cartoon/Glow Up (Vertical)',
+  '3b0f9e8c-7d5e-6f3e-0e4b-8c6d5e4f3e2b': 'Écran Dessin/Noir & Blanc (Vertical)',
+  '4c1a0f9d-8e6f-7e4e-1f5c-9d7e6f5e4e3c': 'Écran Caricatures/Normal (Vertical)',
+  '5d2b1e0a-9f7e-8d6c-7b5a-2c1d0e9f8a7b': 'Écran Props (Vertical)',
+  '6e3c2f1b-0a8f-9e7d-8c6b-3d2e1f0a9b8c': 'Écran Vidéo (Horizontal)'
+};
+
+// Configuration par défaut pour les paramètres
+const DEFAULT_CAPTURE_PARAMS = {
+  countdown_duration: 3,
+  flash_enabled: true,
+  mirror_preview: true,
+  show_countdown: true,
+  countdown_color: '#ffffff',
+};
+
+const DEFAULT_APPEARANCE_PARAMS = {
+  primary_color: '#6d28d9',
+  secondary_color: '#1d4ed8',
+  background_color: '#ffffff',
+  text_color: '#1f2937',
+  font_family: 'Inter, sans-serif',
+  animation_speed: 'normal',
+  frame_url: '',
+  logo_url: ''
+};
+
+const DEFAULT_ADVANCED_PARAMS = {
+  debug_mode: false,
+  second_capture: false,
+  qr_code_enabled: true,
+  timeout_duration: 60,
+  api_endpoint: '',
+  unlock_button_opacity: 10
+};
+
+// Effets disponibles par défaut
+const DEFAULT_AVAILABLE_EFFECTS = {
+  cartoon: [],
+  caricature: [],
+  dessin: [],
+  univers: [],
+  props: [],
+  video: []
+};
+
+// Configuration d'activation des effets par défaut
+const DEFAULT_EFFECT_SETTINGS = {
+  normal: true,
+  'v-normal': true,
+  'noir-et-blanc': true,
+  'glow-up': true
+};
+
+// Création du contexte pour la configuration des écrans
+const ScreenConfigContext = createContext();
+
+/**
+ * Provider pour la gestion de la configuration des écrans
+ * Centralise la logique de chargement et de sauvegarde des configurations
+ */
+export function ScreenConfigProvider({ children, screenId: initialScreenId, eventId }) {
+  const [screenId, setScreenId] = useState(initialScreenId);
+  const [config, setConfig] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isActive, setIsActive] = useState(true);
+  
+  // Fonction pour obtenir l'UUID d'un écran à partir de son ID - optimisé avec useCallback
+  const getScreenUUID = useCallback((id) => {
+    return SCREEN_UUID_MAP[id] || id;
+  }, []);
+  
+  // Fonction pour obtenir le type d'écran à partir de son ID - optimisé avec useCallback
+  const getScreenType = useCallback((id) => {
+    if (id === 'horizontal1' || id === SCREEN_UUID_MAP['horizontal1']) {
+      return 'horizontal';
+    }
+    return 'vertical';
+  }, []);
+  
+  // Fonction pour obtenir le nom d'un écran à partir de son ID - optimisé avec useCallback
+  const getScreenName = useCallback((id) => {
+    // Si l'ID est un UUID, utiliser le mapping des noms
+    if (SCREEN_NAME_MAP[id]) {
+      return SCREEN_NAME_MAP[id];
+    }
+    
+    // Sinon, utiliser le mapping inverse (identifiant -> UUID -> nom)
+    const uuid = getScreenUUID(id);
+    return SCREEN_NAME_MAP[uuid] || `Écran ${id}`;
+  }, [getScreenUUID]);
+  
+  // Créer une configuration par défaut optimisée avec useCallback
+  const createDefaultConfig = useCallback((id) => {
+    const uuid = getScreenUUID(id);
+    const screenType = getScreenType(id);
+    
+    return {
+      id: uuid,
+      name: getScreenName(id),
+      type: screenType,
+      orientation: screenType === 'horizontal' ? 'landscape' : 'portrait',
+      ratio: screenType === 'horizontal' ? '16:9' : '9:16',
+      screen_key: id,
+      capture_params: DEFAULT_CAPTURE_PARAMS,
+      appearance_params: DEFAULT_APPEARANCE_PARAMS,
+      advanced_params: DEFAULT_ADVANCED_PARAMS,
+      availableEffects: DEFAULT_AVAILABLE_EFFECTS,
+      effectSettings: DEFAULT_EFFECT_SETTINGS,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  }, [getScreenUUID, getScreenType, getScreenName]);
+  
+  // Charger la configuration d'un écran - optimisé avec useCallback
+  const loadScreenConfig = useCallback(async (id) => {
+    if (!id) return;
+    
+    setIsLoading(true);
+    try {
+      const uuid = getScreenUUID(id);
+      
+      // Récupérer la configuration depuis Supabase
+      const { data, error } = await supabase
+        .from('screens')
+        .select('*')
+        .eq('id', uuid)
+        .single();
+      
+      // Stocker l'ID de l'événement dans le localStorage pour référence
+      if (eventId) {
+        localStorage.setItem(`screen_${id}_event_id`, eventId);
+      }
+      
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Aucune configuration trouvée, créer une configuration par défaut
+          const defaultConfig = createDefaultConfig(id);
+          setConfig(defaultConfig);
+        } else {
+          throw error;
+        }
+      } else if (data) {
+        // Traiter les données reçues pour extraire la configuration sérialisée
+        try {
+          let configData = {};
+          
+          if (data.config) {
+            // Vérifier si data.config est déjà un objet ou une chaîne JSON
+            if (typeof data.config === 'object') {
+              configData = data.config;
+            } else {
+              try {
+                configData = JSON.parse(data.config);
+              } catch (e) {
+                console.warn('Format de config invalide, utilisation des valeurs par défaut');
+              }
+            }
+          }
+          
+          // Construire l'objet de configuration complet
+          const fullConfig = {
+            id: data.id,
+            name: data.name,
+            type: data.type,
+            orientation: data.orientation,
+            ratio: data.ratio,
+            screen_key: data.screen_key,
+            capture_params: configData.capture_params || DEFAULT_CAPTURE_PARAMS,
+            appearance_params: configData.appearance_params || DEFAULT_APPEARANCE_PARAMS,
+            advanced_params: configData.advanced_params || DEFAULT_ADVANCED_PARAMS,
+            // Récupérer les effets disponibles et leur état d'activation
+            availableEffects: configData.availableEffects || DEFAULT_AVAILABLE_EFFECTS,
+            effectSettings: configData.effectSettings || DEFAULT_EFFECT_SETTINGS,
+            created_at: data.created_at,
+            updated_at: data.updated_at
+          };
+          
+          setConfig(fullConfig);
+        } catch (parseError) {
+          console.error('Erreur lors du parsing de la configuration:', parseError);
+          // En cas d'erreur, utiliser une configuration par défaut
+          const defaultConfig = createDefaultConfig(id);
+          setConfig(defaultConfig);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement de la configuration:', error);
+      notify.error('Erreur lors du chargement de la configuration');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [eventId, getScreenUUID, createDefaultConfig]);
+  
+  // Sauvegarder la configuration de l'écran - optimisé avec useCallback
+  const saveScreenConfig = useCallback(async (configToSave) => {
+    if (!configToSave) return;
+    
+    setIsSaving(true);
+    try {
+      // Mettre à jour l'état local immédiatement pour une meilleure expérience utilisateur
+      setConfig(configToSave);
+      
+      // Convertir l'identifiant d'écran en UUID si nécessaire
+      const uuid = getScreenUUID(configToSave.id || screenId);
+      
+      // S'assurer que les paramètres sont complets
+      const completeConfig = {
+        ...configToSave,
+        capture_params: { ...DEFAULT_CAPTURE_PARAMS, ...configToSave.capture_params },
+        appearance_params: { ...DEFAULT_APPEARANCE_PARAMS, ...configToSave.appearance_params },
+        advanced_params: { ...DEFAULT_ADVANCED_PARAMS, ...configToSave.advanced_params },
+      };
+      
+      // Extraire les champs de base et sérialiser les paramètres complexes
+      const { 
+        id, name, type, orientation, ratio, screen_key, created_at,
+        capture_params, appearance_params, advanced_params,
+        config: existingConfig, // Éviter de réutiliser le champ config s'il existe
+        ...otherFields 
+      } = completeConfig;
+      
+      // Préparer l'objet à sauvegarder dans la base de données
+      const dataToSave = {
+        id: uuid,
+        name: name || `Écran ${screen_key || screenId}`,
+        type: type || 'vertical',
+        orientation: orientation || 'portrait',
+        ratio: ratio || '9:16',
+        screen_key: screen_key || screenId,
+        // Sérialiser les paramètres complexes en JSON
+        config: {
+          capture_params,
+          appearance_params,
+          advanced_params,
+          availableEffects: completeConfig.availableEffects || DEFAULT_AVAILABLE_EFFECTS,
+          effectSettings: completeConfig.effectSettings || DEFAULT_EFFECT_SETTINGS,
+          ...otherFields
+        },
+        updated_at: new Date().toISOString()
+      };
+      
+      // Si c'est une nouvelle configuration, ajouter la date de création
+      if (!created_at) {
+        dataToSave.created_at = new Date().toISOString();
+      }
+      
+      // Sauvegarder dans Supabase avec upsert
+      const { error } = await supabase
+        .from('screens')
+        .upsert(dataToSave);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Associer l'écran à l'événement si un événement est spécifié
+      if (eventId) {
+        await associateScreenWithEvent(uuid, eventId);
+      }
+      
+      notify.success('Configuration sauvegardée avec succès');
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de la configuration:', error);
+      notify.error('Erreur lors de la sauvegarde de la configuration');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [screenId, getScreenUUID]);
+  
+  // Associer un écran à un événement - optimisé avec useCallback
+  const associateScreenWithEvent = useCallback(async (screenUUID, eventUUID) => {
+    try {
+      // Vérifier si l'association existe déjà
+      const { data: existingAssociation, error: checkError } = await supabase
+        .from('event_screens')
+        .select('*')
+        .eq('event_id', eventUUID)
+        .eq('screen_id', screenUUID)
+        .single();
+      
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+      
+      // Si aucune association n'existe, la créer
+      if (!existingAssociation) {
+        const { error: insertError } = await supabase
+          .from('event_screens')
+          .insert({
+            event_id: eventUUID,
+            screen_id: screenUUID,
+            is_active: true
+          });
+        
+        if (insertError) throw insertError;
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'association de l\'écran à l\'événement:', error);
+    }
+  }, []);
+  
+  // Mettre à jour une section spécifique de la configuration - optimisé avec useCallback
+  const updateConfig = useCallback((section, newValues) => {
+    if (!config) return;
+    
+    // Créer une copie profonde pour éviter la mutation directe de l'état
+    const updatedConfig = JSON.parse(JSON.stringify(config));
+    
+    // Mettre à jour la section spécifiée
+    if (section === 'capture') {
+      updatedConfig.capture_params = { ...updatedConfig.capture_params, ...newValues };
+    } else if (section === 'appearance') {
+      updatedConfig.appearance_params = { ...updatedConfig.appearance_params, ...newValues };
+    } else if (section === 'advanced') {
+      updatedConfig.advanced_params = { ...updatedConfig.advanced_params, ...newValues };
+    } else {
+      // Mise à jour directe pour les autres sections
+      updatedConfig[section] = { ...updatedConfig[section], ...newValues };
+    }
+    
+    // Mettre à jour la date de modification
+    updatedConfig.updated_at = new Date().toISOString();
+    
+    setConfig(updatedConfig);
+    return updatedConfig;
+  }, [config]);
+  
+  // Fonctions pour exporter et importer la configuration
+  const exportConfig = useCallback(() => {
+    if (!config) return null;
+    
+    try {
+      // Créer une copie de la configuration actuelle
+      const configToExport = { ...config };
+      
+      // Convertir en chaîne JSON
+      const jsonConfig = JSON.stringify(configToExport, null, 2);
+      
+      // Créer un objet Blob pour le téléchargement
+      const blob = new Blob([jsonConfig], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      // Créer un lien de téléchargement
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `config_${config.screen_key || screenId}_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Nettoyer
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+      
+      notify.success('Configuration exportée avec succès');
+      return true;
+    } catch (error) {
+      console.error('Erreur lors de l\'exportation de la configuration:', error);
+      notify.error('Erreur lors de l\'exportation de la configuration');
+      return false;
+    }
+  }, [config, screenId]);
+  
+  // Fonction pour importer une configuration
+  const importConfig = useCallback((jsonConfig) => {
+    try {
+      // Analyser la configuration JSON
+      let configToImport;
+      
+      if (typeof jsonConfig === 'string') {
+        configToImport = JSON.parse(jsonConfig);
+      } else {
+        configToImport = jsonConfig;
+      }
+      
+      // Vérifier que la configuration a un format valide
+      if (!configToImport || typeof configToImport !== 'object') {
+        throw new Error('Format de configuration invalide');
+      }
+      
+      // Fusionner avec les valeurs par défaut pour s'assurer que tous les champs sont présents
+      const mergedConfig = {
+        ...configToImport,
+        capture_params: { ...DEFAULT_CAPTURE_PARAMS, ...configToImport.capture_params },
+        appearance_params: { ...DEFAULT_APPEARANCE_PARAMS, ...configToImport.appearance_params },
+        advanced_params: { ...DEFAULT_ADVANCED_PARAMS, ...configToImport.advanced_params },
+        availableEffects: { ...DEFAULT_AVAILABLE_EFFECTS, ...configToImport.availableEffects },
+        effectSettings: { ...DEFAULT_EFFECT_SETTINGS, ...configToImport.effectSettings },
+        // Conserver l'ID actuel et mettre à jour la date
+        id: config.id,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Mettre à jour l'état
+      setConfig(mergedConfig);
+      
+      notify.success('Configuration importée avec succès');
+      return true;
+    } catch (error) {
+      console.error('Erreur lors de l\'importation de la configuration:', error);
+      notify.error('Erreur lors de l\'importation de la configuration');
+      return false;
+    }
+  }, [config]);
+  
+  // Mettre à jour les effets disponibles pour un type donné - optimisé avec useCallback
+  const updateAvailableEffects = useCallback((effectType, effects) => {
+    if (!config) return;
+    
+    const updatedConfig = { ...config };
+    
+    // S'assurer que availableEffects est initialisé
+    if (!updatedConfig.availableEffects) {
+      updatedConfig.availableEffects = { ...DEFAULT_AVAILABLE_EFFECTS };
+    }
+    
+    // Mettre à jour les effets du type spécifié
+    updatedConfig.availableEffects = {
+      ...updatedConfig.availableEffects,
+      [effectType]: effects
+    };
+    
+    // Mettre à jour la date de modification
+    updatedConfig.updated_at = new Date().toISOString();
+    
+    setConfig(updatedConfig);
+  }, [config]);
+  
+  // Mettre à jour les paramètres d'un effet - optimisé avec useCallback
+  const updateEffectSettings = useCallback((effectId, isEnabled) => {
+    if (!config) return;
+    
+    const updatedConfig = { ...config };
+    
+    // S'assurer que effectSettings est initialisé
+    if (!updatedConfig.effectSettings) {
+      updatedConfig.effectSettings = { ...DEFAULT_EFFECT_SETTINGS };
+    }
+    
+    // Mettre à jour l'état d'activation de l'effet
+    updatedConfig.effectSettings = {
+      ...updatedConfig.effectSettings,
+      [effectId]: isEnabled
+    };
+    
+    // Mettre à jour la date de modification
+    updatedConfig.updated_at = new Date().toISOString();
+    
+    setConfig(updatedConfig);
+    return updatedConfig;
+  }, [config]);
+  
+  // Charger la configuration au montage du composant ou lorsque screenId change
+  useEffect(() => {
+    if (initialScreenId) {
+      loadScreenConfig(initialScreenId);
+    }
+  }, [initialScreenId, loadScreenConfig]);
+  
+  // Valeurs exposées par le contexte
+  const contextValue = useMemo(() => ({
+    config,
+    screenId,
+    setScreenId,
+    isLoading,
+    isSaving,
+    isActive,
+    loadScreenConfig,
+    saveScreenConfig,
+    updateConfig,
+    updateAvailableEffects,
+    updateEffectSettings,
+    exportConfig,
+    importConfig,
+    getScreenUUID,
+    getScreenType,
+    getScreenName,
+    eventId
+  }), [config, screenId, isLoading, isSaving, isActive, loadScreenConfig, saveScreenConfig, updateConfig, updateAvailableEffects, updateEffectSettings, exportConfig, importConfig, getScreenUUID, getScreenType, getScreenName, eventId]);
+
+  // Afficher un indicateur de chargement si nécessaire
+  if (isLoading && !config) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8" role="status" aria-live="polite">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" aria-hidden="true" />
+        <p className="text-text-secondary">Chargement de la configuration...</p>
+      </div>
+    );
+  }
+
+  return (
+    <ScreenConfigContext.Provider value={contextValue}>
+      {children}
+    </ScreenConfigContext.Provider>
+  );
+}
+
+// Hook personnalisé pour utiliser le contexte
+export function useScreenConfig() {
+  const context = useContext(ScreenConfigContext);
+  if (context === undefined) {
+    throw new Error('useScreenConfig doit être utilisé à l\'intérieur d\'un ScreenConfigProvider');
+  }
+  return context;
+}

@@ -1,0 +1,227 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Importer notre système de design */
+@import './styles/design-system.css';
+
+:root {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-family);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-base);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    @apply antialiased;
+  }
+  
+  body {
+    @apply bg-background text-text transition-colors duration-200;
+    background-color: rgb(var(--color-background));
+    color: rgb(var(--color-text));
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+  
+  h1 { @apply text-2xl sm:text-3xl; }
+  h2 { @apply text-xl sm:text-2xl; }
+  h3 { @apply text-lg sm:text-xl; }
+  
+  a {
+    @apply transition-colors;
+    color: rgb(var(--color-primary));
+  }
+  
+  a:hover {
+    color: rgb(var(--color-secondary));
+  }
+}
+
+@layer components {
+  /* Composants de boutons selon la nouvelle charte graphique */
+  .btn-primary {
+    @apply inline-flex items-center justify-center font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply bg-violet-600 text-white hover:bg-violet-700 focus:ring-violet-500 dark:bg-violet-500 dark:hover:bg-violet-600;
+    @apply px-4 py-2;
+    transition: all var(--transition-fast);
+  }
+  
+  .btn-secondary {
+    @apply inline-flex items-center justify-center font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply border border-violet-600 text-violet-600 hover:bg-violet-50 focus:ring-violet-500 dark:border-violet-400 dark:text-violet-400 dark:hover:bg-violet-900/20;
+    @apply px-4 py-2;
+    transition: all var(--transition-fast);
+  }
+  
+  .btn-tertiary {
+    @apply inline-flex items-center justify-center font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply text-violet-600 hover:text-violet-700 hover:underline focus:ring-violet-500 dark:text-violet-400 dark:hover:text-violet-300;
+    @apply px-4 py-2;
+    transition: all var(--transition-fast);
+  }
+  
+  .btn-destructive {
+    @apply inline-flex items-center justify-center font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 dark:bg-red-500 dark:hover:bg-red-600;
+    @apply px-4 py-2;
+    transition: all var(--transition-fast);
+  }
+  
+  /* Variantes de taille */
+  .btn-sm {
+    @apply text-sm px-3 py-1.5 rounded;
+  }
+  
+  .btn-md {
+    @apply text-base px-4 py-2;
+  }
+  
+  .btn-lg {
+    @apply text-lg px-6 py-3;
+  }
+  
+  /* État désactivé */
+  .btn-disabled, .btn-primary[disabled], .btn-secondary[disabled], .btn-tertiary[disabled], .btn-destructive[disabled] {
+    @apply opacity-50 cursor-not-allowed pointer-events-none;
+  }
+  .input {
+    @apply flex h-10 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 dark:focus:ring-violet-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-sans;
+    border-color: var(--color-border);
+    color: var(--color-text);
+    background-color: var(--color-background);
+    transition: border-color var(--transition-fast);
+  }
+  .input:focus {
+    border-color: var(--color-border-focus);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+  }
+  
+  .card {
+    @apply rounded-lg border shadow-sm font-sans;
+    border-color: var(--color-border);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+  }
+  
+  .label {
+    @apply text-sm font-medium leading-none font-sans;
+    color: var(--color-text);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .touch-button {
+    @apply active:scale-95 select-none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform var(--transition-fast);
+  }
+
+  .photo-card {
+    @apply relative overflow-hidden rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow aspect-square;
+  }
+
+  .photo-card img {
+    @apply w-full h-full object-cover transition-transform duration-300;
+  }
+
+  .photo-card:hover img {
+    @apply scale-105;
+  }
+
+  .photo-overlay {
+    @apply absolute inset-0 bg-black bg-opacity-0 flex items-center justify-center opacity-0 transition-all duration-300;
+  }
+
+  .photo-card:hover .photo-overlay {
+    @apply bg-opacity-40 opacity-100;
+  }
+
+  .photo-actions {
+    @apply flex gap-2 scale-90 opacity-0 transition-all duration-300;
+  }
+
+  .photo-overlay:hover .photo-actions {
+    @apply scale-100 opacity-100;
+  }
+
+  .action-button {
+    @apply p-2 rounded-full touch-button;
+    background-color: var(--color-surface);
+    color: var(--color-primary);
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-fast);
+  }
+  
+  .action-button:hover {
+    background-color: var(--color-primary-light);
+    color: var(--color-primary-contrast);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity duration-300;
+  }
+
+  .modal-content {
+    @apply bg-white rounded-2xl shadow-xl max-w-4xl w-full mx-auto transform transition-all duration-300;
+  }
+
+  .form-input {
+    @apply w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-all duration-200 text-lg;
+  }
+
+  .form-button {
+    @apply w-full py-3 px-6 rounded-lg bg-purple-600 text-white font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-primary-dark focus:ring-offset-2 transition-all duration-200 touch-button;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-2 px-4 py-3 rounded-lg text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors touch-button;
+  }
+
+  .nav-link.active {
+    @apply bg-purple-100 text-purple-600 font-medium;
+  }
+}
+
+@layer utilities {
+  .photo-grid {
+    /* @apply grid gap-4;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); */
+    
+  }
+
+
+  .infinite-scroll-container {
+    @apply overflow-y-auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  .portrait-mode {
+    transform: rotate(90deg);
+    transform-origin: center;
+    width: 100vh;
+    height: 100vw;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    overflow: hidden;
+    
+    /* Ajustement pour recentrer */
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
+}
+

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selfie Box - Partage</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-b from-purple-900 to-black min-h-screen flex items-center justify-center">
+    <div class="bg-white/10 p-8 rounded-lg shadow-xl max-w-lg w-full mx-4">
+        <h1 class="text-3xl font-bold text-white mb-6 text-center">Selfie Box</h1>
+        <div id="imageContainer" class="rounded-lg overflow-hidden mb-6">
+            <!-- L'image sera insérée ici -->
+        </div>
+        <div class="flex justify-center gap-4">
+            <button onclick="downloadImage()" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+                Télécharger
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Fonction pour récupérer l'ID de l'image depuis l'URL
+        function getImageId() {
+            const path = window.location.pathname;
+            return path.split('/').pop();
+        }
+
+        // Fonction pour télécharger l'image
+        function downloadImage() {
+            const imageId = getImageId();
+            const imageUrl = localStorage.getItem(`selfie_${imageId}`);
+            if (imageUrl) {
+                const link = document.createElement('a');
+                link.href = imageUrl;
+                link.download = `selfie-${imageId}.jpg`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        // Charger l'image au chargement de la page
+        window.onload = function() {
+            const imageId = getImageId();
+            const imageUrl = localStorage.getItem(`selfie_${imageId}`);
+            if (imageUrl) {
+                const container = document.getElementById('imageContainer');
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.className = 'w-full h-auto rounded-lg';
+                container.appendChild(img);
+            } else {
+                const container = document.getElementById('imageContainer');
+                container.innerHTML = '<p class="text-white text-center">Image non trouvée ou expirée</p>';
+            }
+        };
+    </script>
+</body>
+</html>

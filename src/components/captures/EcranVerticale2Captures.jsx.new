@@ -1,0 +1,629 @@
+import React, { useState, useRef, useEffect } from 'react';
+import Webcam from 'react-webcam';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { LoadingSpinner } from '../LoadingSpinner';
+import { QRCode } from '../QRCode';
+import { supabase } from '../../../lib/supabase';
+import { notify } from '../../../lib/notifications';
+import { getCurrentStandId } from '../../utils/standConfig';
+import { useScreenConfig } from '../hooks/useScreenConfig';
+import { updateCaptureStationStatus, fetchPendingCommands, markCommandAsExecuted } from '../../../lib/captureStations';
+import { savePhotoLocally } from '../../../lib/localStorage';
+import { saveProcessedPhotoToSupabase } from '../../../lib/processedPhotos';
+import axios from 'axios';
+import WelcomeScreen from '../WelcomeScreen';
+import SelectEffect from '../../components/effects/SelectEffect';
+import { MAGICAL_EFFECTS, NORMAL_EFFECTS, composeEffects } from '../../../lib/composeEffects';
+
+// Constantes pour ce type d'écran
+const SCREEN_TYPE = 'vertical_2';
+const SCREEN_WIDTH = 1080;
+const SCREEN_HEIGHT = 1920;
+const DEFAULT_FILTER = 'EffectDessin';
+const CAPTURE_BUTTON_TEXT = 'Devenir une œuvre d\'art';
+const RESULT_TEXT = 'Votre photo avec effet Dessin';
+
+// Composant pour la sélection d'effets magiques
+const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => {
+  // Filtrer les effets en fonction de la configuration de l'écran si nécessaire
+  const availableEffects = config?.magicalEffect 
+    ? MAGICAL_EFFECTS.filter(effect => effect.id === config.magicalEffect)
+    : MAGICAL_EFFECTS;
+  
+  return (
+    <SelectEffect
+      title="Choisissez un effet magique"
+      subtitle="Transformez votre photo avec l'IA"
+      list={availableEffects}
+      onSelect={onSelectEffect}
+      onCancel={onCancel}
+      type="magical"
+      showSkip={false}
+    />
+  );
+};
+
+// Composant pour la sélection d'effets normaux
+const NormalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => {
+  // Filtrer les effets en fonction de la configuration de l'écran si nécessaire
+  const availableEffects = config?.normalEffect 
+    ? NORMAL_EFFECTS.filter(effect => effect.id === config.normalEffect)
+    : NORMAL_EFFECTS;
+  
+  return (
+    <SelectEffect
+      title="Choisissez un effet normal"
+      subtitle="Ajoutez une touche finale"
+      list={availableEffects}
+      onSelect={onSelectEffect}
+      onCancel={onCancel}
+      type="normal"
+      showSkip={true}
+    />
+  );
+};
+
+// Composant d'aperçu de capture
+const ApercuCapture = ({ image, onClose, onRetry, config }) => {
+  return (
+    <div className="fixed inset-0 flex items-center justify-center z-30 bg-black/80">
+      <div className="relative w-4/5 h-4/5">
+        <img src={image} alt="Aperçu" className="w-full h-full object-contain border-4 border-purple-600" />
+        
+        {/* Boutons de contrôle sous l'image */}
+        <div className="absolute bottom-0 left-0 right-0 flex justify-center space-x-8 p-4 mb-8 bg-black/30 backdrop-blur-sm z-50">
+          {/* Bouton Parfait */}
+          <button
+            onClick={() => onClose('continue')}
+            className="bg-green-600 hover:bg-green-700 text-white text-xl font-bold py-4 px-8 rounded-full shadow-lg transform transition-transform hover:scale-105 min-w-[150px] border-2 border-white/20"
+          >
+            <div className="flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Parfait
+            </div>
+          </button>
+          
+          {/* Bouton Recommencer */}
+          <button
+            onClick={onRetry}
+            className="bg-red-600 hover:bg-red-700 text-white text-xl font-bold py-4 px-8 rounded-full shadow-lg transform transition-transform hover:scale-105 min-w-[150px] border-2 border-white/20"
+          >
+            <div className="flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Recommencer
+            </div>
+          </button>
+        </div>
+      </div>      
+    </div>
+  );
+};
+
+// Composant de traitement en cours
+const TraitementEnCours = () => {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
+      <div className="bg-black/70 p-8 rounded-xl border-2 border-purple-600 flex flex-col items-center max-w-md w-full">
+        <LoadingSpinner />
+        <p className="text-white text-3xl font-bold mt-6 mb-4 text-center">Un peu de patience!</p>
+        <p className="text-gray-300 text-lg mb-6 text-center">Nous transformons votre photo en œuvre d'art</p>
+        <div className="w-full h-3 bg-gray-800 rounded-full overflow-hidden">
+          <div className="h-full bg-purple-600 animate-progress-bar rounded-full"></div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default function EcranVerticale2Captures({ eventId }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const webcamRef = useRef(null);
+  const [imgSrc, setImgSrc] = useState(null);
+  const [decompte, setDecompte] = useState(null);
+  const [etape, setEtape] = useState('accueil'); // accueil, decompte, validation, magicalEffect, normalEffect, traitement, resultat
+  const [enTraitement, setEnTraitement] = useState(false);
+  const [imageTraitee, setImageTraitee] = useState(null);
+  const [decompteResultat, setDecompteResultat] = useState(null);
+  const [montrerQRCode, setMontrerQRCode] = useState(false);
+  const [dureeDecompte, setDureeDecompte] = useState(5); // Valeur par défaut: 5 secondes
+  const [webcamEstPret, setWebcamEstPret] = useState(false); 
+  const [isLoading, setIsLoading] = useState(false);
+  const [standId, setStandId] = useState(getCurrentStandId());  //Id du stand 
+  const eventIDFromLocation = location.state?.eventID;
+  const [eventID, setEventID] = useState(eventId || eventIDFromLocation);
+  const [webcamError, setWebcamError] = useState(null);
+  const [selectedMagicalEffect, setSelectedMagicalEffect] = useState(null);
+  const [selectedNormalEffect, setSelectedNormalEffect] = useState(null);
+  const [showWelcomeScreen, setShowWelcomeScreen] = useState(true);
+  const [showFlash, setShowFlash] = useState(false);
+  const [showAdminPasswordModal, setShowAdminPasswordModal] = useState(false);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+  
+  // Utiliser le hook useScreenConfig pour récupérer la configuration d'écran
+  const { config, isLoading: configLoading } = useScreenConfig(SCREEN_TYPE, eventID);
+  
+  // Récupérer un événement par défaut si aucun n'est spécifié
+  useEffect(() => {
+    const fetchDefaultEvent = async () => {
+      if (!eventID) {
+        try {
+          console.log("Aucun événement spécifié, recherche d'un événement par défaut...");
+          const { data, error } = await supabase
+            .from('events')
+            .select('id')
+            .order('date', { ascending: false })
+            .limit(1);
+
+          if (error) {
+            console.error("Erreur lors de la récupération de l'événement par défaut:", error);
+            notify.error("Erreur lors de la récupération de l'événement par défaut.");
+            return;
+          }
+
+          if (data && data.length > 0) {
+            console.log("Événement par défaut trouvé:", data[0]);
+            setEventID(data[0].id);
+          } else {
+            console.warn("Aucun événement trouvé dans la base de données.");
+            notify.warning("Aucun événement trouvé. Veuillez en créer un dans l'interface d'administration.");
+          }
+        } catch (err) {
+          console.error("Erreur lors de la recherche d'un événement par défaut:", err);
+          notify.error("Erreur lors de la recherche d'un événement par défaut.");
+        }
+      }
+    };
+
+    fetchDefaultEvent();
+  }, [eventID]);
+
+  // Gérer le redimensionnement de la fenêtre
+  const [windowDimensions, setWindowDimensions] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [windowDimensions]);
+
+  // Fonction pour lancer le décompte avant la capture
+  const lancerDecompte = () => {
+    setDecompte(dureeDecompte);
+    
+    const interval = setInterval(() => {
+      setDecompte(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          // Prendre la photo
+          capture();
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // Fonction pour capturer une photo
+  const capture = () => {
+    if (!webcamRef.current) {
+      console.error("Webcam non initialisée");
+      notify.error("Erreur: Webcam non initialisée");
+      return;
+    }
+    
+    try {
+      // Afficher le flash
+      setShowFlash(true);
+      setTimeout(() => setShowFlash(false), 300);
+      
+      // Capturer l'image
+      const imageSrc = webcamRef.current.getScreenshot();
+      if (!imageSrc) {
+        throw new Error("Impossible de capturer l'image");
+      }
+      
+      setImgSrc(imageSrc);
+      setEtape('validation');
+      
+      // Jouer le son de l'obturateur
+      const shutterSound = new Audio('/assets/sounds/shutter.mp3');
+      shutterSound.play();
+    } catch (error) {
+      console.error("Erreur lors de la capture:", error);
+      notify.error("Erreur lors de la capture de la photo");
+      setEtape('accueil');
+    }
+  };
+
+  // Fonction pour gérer la sélection d'un effet magique
+  const selectionnerEffetMagique = (effetId) => {
+    setSelectedMagicalEffect(effetId);
+    
+    // Passer à la sélection d'effet normal
+    if (config && config.normalEffect) {
+      // Si un effet normal est déjà configuré, le sélectionner automatiquement
+      setSelectedNormalEffect(config.normalEffect);
+      // Passer directement au traitement
+      setEtape('traitement');
+      setEnTraitement(true);
+      savePhoto();
+    } else {
+      // Sinon, afficher la sélection d'effet normal
+      setEtape('normalEffect');
+    }
+  };
+  
+  // Fonction pour sélectionner un effet normal et traiter la photo
+  const selectionnerEffetNormal = (effetId) => {
+    setSelectedNormalEffect(effetId);
+    setEtape('traitement');
+    setEnTraitement(true);
+    savePhoto();
+  };
+  
+  // Fonction pour annuler la sélection d'effet magique
+  const annulerSelectionEffetMagique = () => {
+    setEtape('validation');
+  };
+  
+  // Fonction pour annuler la sélection d'effet normal
+  const annulerSelectionEffetNormal = () => {
+    setEtape('magicalEffect');
+  };
+  
+  // Fonction pour gérer la validation de la photo
+  const handleValidation = (action) => {
+    if (action === 'continue') {
+      setEtape('magicalEffect');
+    } else {
+      resetAll();
+    }
+  };
+
+  // Fonction pour sauvegarder la photo avec les effets sélectionnés
+  const savePhoto = async () => {
+    if (!imgSrc) return;
+    
+    setEnTraitement(true);
+    
+    try {
+      // Convertir l'image base64 en blob pour le stockage
+      const res = await fetch(imgSrc);
+      const blob = await res.blob();
+      
+      // Générer un nom de fichier unique
+      const fileName = `${Date.now()}_${standId || 'unknown'}_${SCREEN_TYPE}.jpg`;
+      const filePath = `photos/${fileName}`;
+      
+      // Télécharger l'image originale vers Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('media')
+        .upload(filePath, blob, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+        });
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Récupérer l'URL publique de l'image originale
+      const { data: urlData } = await supabase.storage
+        .from('media')
+        .getPublicUrl(filePath);
+      
+      const publicUrl = urlData.publicUrl;
+      
+      // Créer un canvas à partir de l'image source pour le traitement
+      const img = new Image();
+      img.src = imgSrc;
+      await new Promise(resolve => {
+        img.onload = resolve;
+      });
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      
+      // Appliquer les effets sélectionnés en utilisant la fonction composeEffects
+      const processedCanvas = await composeEffects(canvas, selectedMagicalEffect, selectedNormalEffect);
+      
+      // Convertir le canvas traité en URL de données
+      const processedImageUrl = processedCanvas.toDataURL('image/jpeg');
+      setImageTraitee(processedImageUrl);
+      
+      // Convertir l'URL de données en blob pour le stockage
+      const processedRes = await fetch(processedImageUrl);
+      const processedBlob = await processedRes.blob();
+      
+      // Générer un nom de fichier unique pour l'image traitée
+      const processedFileName = `processed_${Date.now()}_${standId || 'unknown'}_${SCREEN_TYPE}.jpg`;
+      const processedFilePath = `processed/${processedFileName}`;
+      
+      // Télécharger l'image traitée vers Supabase Storage
+      const { data: processedData, error: processedError } = await supabase.storage
+        .from('media')
+        .upload(processedFilePath, processedBlob, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+        });
+      
+      if (processedError) {
+        throw processedError;
+      }
+      
+      // Récupérer l'URL publique de l'image traitée
+      const { data: processedUrlData } = await supabase.storage
+        .from('media')
+        .getPublicUrl(processedFilePath);
+      
+      const processedPublicUrl = processedUrlData.publicUrl;
+      
+      // Enregistrer les métadonnées de la photo dans la base de données
+      const { data: photoData, error: photoError } = await supabase
+        .from('photos')
+        .insert([
+          {
+            url: publicUrl,
+            processed_url: processedPublicUrl,
+            event_id: eventID,
+            stand_id: standId,
+            screen_type: SCREEN_TYPE,
+            filter_name: config?.filter_name || DEFAULT_FILTER,
+            magical_effect: selectedMagicalEffect,
+            normal_effect: selectedNormalEffect
+          }
+        ])
+        .select();
+      
+      if (photoError) {
+        throw photoError;
+      }
+      
+      // Sauvegarder la photo en local
+      try {
+        const localSaveResult = await savePhotoLocally(
+          processedImageUrl, 
+          processedFileName, 
+          eventID, 
+          standId, 
+          SCREEN_TYPE
+        );
+        
+        if (localSaveResult.success) {
+          console.log("Photo sauvegardée localement:", localSaveResult.filePath);
+        } else {
+          console.warn("La sauvegarde locale a échoué:", localSaveResult.error);
+        }
+      } catch (localSaveError) {
+        console.warn("Erreur lors de la sauvegarde locale:", localSaveError);
+      }
+      
+      // Mettre à jour le statut de la station de capture
+      try {
+        await updateCaptureStationStatus(standId, 'idle', 'Photo prise et traitée avec succès');
+      } catch (statusError) {
+        console.warn("Erreur lors de la mise à jour du statut de la station:", statusError);
+      }
+      
+      // Afficher le résultat
+      setTimeout(() => {
+        setEnTraitement(false);
+        setEtape('resultat');
+        
+        // Lancer le décompte pour revenir à l'écran d'accueil
+        setDecompteResultat(10); // 10 secondes par défaut
+        
+        const resultCountdownInterval = setInterval(() => {
+          setDecompteResultat(prev => {
+            if (prev <= 1) {
+              clearInterval(resultCountdownInterval);
+              resetAll();
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }, 2000);
+      
+    } catch (error) {
+      console.error("Erreur lors du traitement de la photo:", error);
+      notify.error("Erreur lors du traitement de la photo");
+      setEnTraitement(false);
+      resetAll();
+    }
+  };
+  
+  // Fonction pour réinitialiser tous les états
+  const resetAll = () => {
+    setImgSrc(null);
+    setDecompte(null);
+    setEtape('accueil');
+    setEnTraitement(false);
+    setImageTraitee(null);
+    setDecompteResultat(null);
+    setMontrerQRCode(false);
+    setSelectedMagicalEffect(null);
+    setSelectedNormalEffect(null);
+    setShowWelcomeScreen(true);
+  };
+
+  return (
+    <div className="relative w-screen h-screen overflow-hidden bg-black">
+      {/* Flash blanc lors de la prise de photo */}
+      {showFlash && (
+        <div className="absolute inset-0 bg-white z-50 animate-flash"></div>
+      )}
+      
+      {/* Webcam - Visible uniquement en mode accueil ou décompte */}
+      {(etape === 'accueil' || etape === 'decompte') && (
+        <div className="relative w-full h-full">
+          {webcamError ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-black text-white text-2xl p-8 text-center">
+              {webcamError}
+            </div>
+          ) : (
+            <Webcam
+              audio={false}
+              ref={webcamRef}
+              screenshotFormat="image/jpeg"
+              videoConstraints={{
+                width: SCREEN_WIDTH,
+                height: SCREEN_HEIGHT,
+                facingMode: "user"
+              }}
+              className="w-full h-full object-cover"
+              onUserMedia={() => setWebcamEstPret(true)}
+              onUserMediaError={(error) => {
+                console.error("Erreur webcam:", error);
+                setWebcamError("Impossible d'accéder à la caméra. Veuillez vérifier les permissions et réessayer.");
+              }}
+            />
+          )}
+          
+          {/* Afficher l'écran d'accueil */}
+          {showWelcomeScreen && etape === 'accueil' && (
+            <WelcomeScreen
+              onStart={() => {
+                setShowWelcomeScreen(false);
+                setEtape('decompte');
+                lancerDecompte();
+              }}
+              buttonText={CAPTURE_BUTTON_TEXT}
+              config={config}
+            />
+          )}
+          
+          {/* Décompte */}
+          {decompte !== null && etape === 'decompte' && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+              <div className="text-white text-[200px] font-bold animate-pulse">
+                {decompte}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Aperçu de la photo pour validation */}
+      {etape === 'validation' && imgSrc && (
+        <ApercuCapture
+          image={imgSrc}
+          onClose={handleValidation}
+          onRetry={() => {
+            setImgSrc(null);
+            setEtape('accueil');
+            setDecompte(null);
+          }}
+          config={config}
+        />
+      )}
+      
+      {/* Sélection d'effet magique */}
+      {etape === 'magicalEffect' && imgSrc && (
+        <MagicalEffectSelection
+          onSelectEffect={selectionnerEffetMagique}
+          onCancel={annulerSelectionEffetMagique}
+          image={imgSrc}
+          config={config}
+        />
+      )}
+      
+      {/* Sélection d'effet normal */}
+      {etape === 'normalEffect' && imgSrc && (
+        <NormalEffectSelection
+          onSelectEffect={selectionnerEffetNormal}
+          onCancel={annulerSelectionEffetNormal}
+          image={imgSrc}
+          config={config}
+        />
+      )}
+      
+      {/* Traitement en cours */}
+      {etape === 'traitement' && enTraitement && (
+        <TraitementEnCours />
+      )}
+      
+      {/* Résultat */}
+      {etape === 'resultat' && imageTraitee && (
+        <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/90 z-50">
+          <div className="relative w-4/5 max-h-[70vh] mb-8">
+            <img src={imageTraitee} alt="Photo traitée" className="w-full h-full object-contain" />
+          </div>
+          
+          <h2 className="text-4xl font-bold text-white mb-6">{RESULT_TEXT}</h2>
+          
+          <div className="flex space-x-6">
+            <button
+              onClick={() => setMontrerQRCode(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold py-4 px-8 rounded-full shadow-lg transform transition-transform hover:scale-105"
+            >
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Partager
+              </div>
+            </button>
+            
+            <button
+              onClick={resetAll}
+              className="bg-purple-600 hover:bg-purple-700 text-white text-xl font-bold py-4 px-8 rounded-full shadow-lg transform transition-transform hover:scale-105"
+            >
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Recommencer
+              </div>
+            </button>
+          </div>
+          
+          {decompteResultat !== null && (
+            <div className="mt-8 text-white text-xl">
+              Retour à l'accueil dans {decompteResultat} secondes...
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* QR Code pour partager */}
+      {montrerQRCode && imageTraitee && (
+        <QRCode 
+          imageUrl={imageTraitee} 
+          onClose={() => setMontrerQRCode(false)} 
+          eventId={eventID}
+        />
+      )}
+      
+      {/* Ajout d'une animation CSS pour le flash */}
+      <style jsx>{`
+        @keyframes flash {
+          0% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+        .animate-flash {
+          animation: flash 0.3s forwards;
+        }
+      `}</style>
+    </div>
+  );
+}

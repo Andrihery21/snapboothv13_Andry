@@ -1,0 +1,479 @@
+/* Styles pour l'interface verticale de PhotoGrid - Optimisé pour écrans tactiles */
+
+.photogrid-root {
+  background: #fff;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow-x: hidden;
+  touch-action: manipulation; /* Optimisation tactile - évite le zoom et autres comportements par défaut */
+  -webkit-tap-highlight-color: transparent; /* Supprime le flash de sélection sur mobile */
+}
+
+/* En-tête avec nom de l'événement et filtres */
+.photogrid-header {
+  background: #8d2cf7;
+  color: var(--color-primary-contrast);
+  padding: 1.5rem 0 1rem 0;
+  text-align: center;
+  box-shadow: var(--shadow-md);
+}
+
+.event-name {
+  font-size: 1.5rem;
+  margin-bottom: 0.8rem;
+  font-weight: 600;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Bouton d'administration discret */
+.admin-link {
+  position: absolute;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.admin-link:hover,
+.admin-link:focus {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.admin-link:active,
+.admin-link.touch-active {
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(0.95);
+}
+
+.filter-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  padding: 0 1rem;
+}
+
+.filter-btn {
+  background: transparent;
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-full);
+  padding: 0.8rem 1.8rem; /* Plus grand pour les doigts */
+  font-size: 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  margin: 0.3rem; /* Espacement pour éviter les clics accidentels */
+  -webkit-tap-highlight-color: transparent;
+  min-width: 44px; /* Taille minimale pour zone tactile */
+  min-height: 44px; /* Taille minimale pour zone tactile */
+}
+
+@media (max-width: 640px) {
+  .filter-btn {
+    padding: 1rem 1.5rem; /* Encore plus grand sur mobile */
+    margin: 0.4rem; /* Plus d'espacement sur mobile */
+    font-size: 0.95rem; /* Légèrement plus petit sur mobile pour tenir */
+  }
+}
+
+.filter-btn.active {
+  background: var(--color-primary);
+  color: white;
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary);
+}
+
+.filter-btn:hover {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  transform: scale(1.05);
+  border-color: var(--color-primary-light);
+}
+
+/* État tactile spécifique */
+.filter-btn:active,
+.filter-btn.touch-active {
+  transform: scale(0.98);
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary-dark);
+  transition: all 0.1s;
+}
+
+/* Contenu principal avec grille de photos */
+.photogrid-main {
+  flex: 1;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 640px) {
+  .photos-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+  }
+}
+
+.photo-cell {
+  background: var(--color-background);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  aspect-ratio: 3/4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+  position: relative;
+  border: 2px solid transparent;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  margin: 0.5rem; /* Plus d'espace entre les cellules pour les doigts */
+  min-height: 150px; /* Hauteur minimale pour une bonne zone tactile */
+}
+
+@media (max-width: 640px) {
+  .photo-cell {
+    margin: 0.25rem; /* Moins d'espace sur mobile pour maximiser la taille */
+    min-height: 120px; /* Hauteur minimale ajustée pour mobile */
+  }
+}
+
+.photo-cell:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
+  border-color: var(--color-primary);
+}
+
+.photo-cell:active,
+.photo-cell.touch-active {
+  transform: scale(0.95); /* Feedback plus prononcé pour tactile */
+  box-shadow: var(--shadow-sm);
+  border-color: var(--color-primary-dark);
+}
+
+/* Effet de ripple au toucher */
+.photo-cell::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  transition: background 0.2s;
+  pointer-events: none; /* Ne bloque pas les événements tactiles */
+}
+
+.photo-cell:active::after {
+  background: rgba(var(--color-primary-rgb), 0.2); /* Plus visible pour feedback tactile */
+}
+
+.photo-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* États vides et chargement */
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 64vh;
+  color: var(--color-primary);
+}
+
+@media (max-width: 640px) {
+  .loading-container {
+    height: 50vh; /* Moins de hauteur sur mobile */
+  }
+}
+
+.empty-state {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  text-align: center;
+  box-shadow: var(--shadow-md);
+  max-width: 500px;
+  margin: 3rem auto;
+}
+
+.empty-state h2 {
+  font-size: 1.5rem;
+  margin: var(--spacing-md) 0;
+  color: var(--color-text);
+}
+
+.empty-state p {
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-lg);
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.5rem;
+  border-radius: 2rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  margin: 0.5rem 0;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 44px; /* Taille minimale pour zone tactile */
+}
+
+@media (max-width: 640px) {
+  .action-button {
+    padding: 1rem 1.8rem; /* Plus grand sur mobile */
+    width: 100%; /* Pleine largeur sur mobile */
+    margin: 0.8rem 0; /* Plus d'espacement vertical */
+  }
+}
+
+.action-button:hover {
+  background: #7a20e3;
+}
+
+/* Overlay pour photo sélectionnée - style conforme à la maquette */
+.photo-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: var(--z-index-modal);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  .photo-overlay {
+    padding: 1rem; /* Moins de padding sur mobile */
+  }
+}
+
+.photo-view-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 1rem;
+  z-index: 10000; /* Encore plus élevé que l'overlay */
+}
+
+.photo-large-container {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  max-width: 70%;
+  height: 80%;
+  z-index: 10001; /* Priorité d'affichage */
+}
+
+.photo-large {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  display: block !important; /* Force l'affichage */
+}
+
+.photo-actions {
+  display: flex !important;
+  flex-direction: column;
+  gap: 2rem;
+  position: absolute;
+  right: 5%;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10002; /* Priorité maximale pour les boutons */
+}
+
+.action-btn {
+  background: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 80px; /* Plus grand pour les doigts */
+  height: 80px; /* Plus grand pour les doigts */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8d2cf7;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin: 0.8rem 0; /* Plus d'espace vertical entre les boutons */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.action-btn:hover {
+  background: #f0f0f0;
+  transform: scale(1.1);
+}
+
+.action-btn:active,
+.action-btn.touch-active {
+  transform: scale(0.9); /* Feedback plus prononcé pour tactile */
+  background: #e7d4ff;
+  transition: all 0.1s;
+}
+
+/* Contrôles d'administration */
+.admin-controls {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: auto;
+  padding: 1rem 0;
+}
+
+.admin-button,
+.capture-button,
+.logout-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.2rem;
+  border-radius: 0.5rem;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-button {
+  background: #f0e6ff;
+  color: #8d2cf7;
+}
+
+.admin-button:hover {
+  background: #e7d4ff;
+}
+
+.capture-button {
+  background: #8d2cf7;
+  color: white;
+}
+
+.capture-button:hover {
+  background: #7a20e3;
+}
+
+.logout-button {
+  background: #f2f2f2;
+  color: #555;
+}
+
+.logout-button:hover {
+  background: #e5e5e5;
+}
+
+/* Responsive et optimisations tactiles */
+@media (max-width: 900px) {
+  .photo-view-container {
+    flex-direction: column;
+  }
+  
+  .photo-large-container {
+    max-width: 90vw;
+    height: auto;
+    max-height: 70vh;
+  }
+  
+  .photo-actions {
+    flex-direction: row;
+    position: relative;
+    right: auto;
+    top: auto;
+    transform: none;
+    margin-top: 2rem;
+    justify-content: center;
+    gap: 1.5rem;
+  }
+  
+  .action-btn {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .filter-buttons {
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+  
+  .filter-btn {
+    padding: 0.7rem 1.2rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .photos-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.8rem;
+  }
+  
+  .photo-large {
+    max-height: 60vh;
+  }
+  
+  .action-btn {
+    width: 60px;
+    height: 60px;
+  }
+  
+  /* Optimisations tactiles supplémentaires pour petits écrans */
+  .admin-controls button {
+    padding: 0.8rem 1rem;
+    margin: 0.3rem;
+  }
+  
+  .photogrid-header {
+    padding: 1rem 0 0.8rem 0;
+  }
+  
+  .event-name {
+    font-size: 1.3rem;
+    margin-bottom: 0.6rem;
+  }
+}

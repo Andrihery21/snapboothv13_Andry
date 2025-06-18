@@ -1,0 +1,98 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+
+const EffectDessin = ({ onSelect }) => {
+  const [effects, setEffects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchEffects = async () => {
+      try {
+        setLoading(true);
+        
+        // Récupérer les effets de type 'dessin' depuis Supabase
+        const { data, error } = await supabase
+          .from('effects')
+          .select('id, name, icon_url, preview_url, is_active, api_type')
+          .eq('type', 'dessin')
+          .eq('is_active', true) // Ne récupérer que les effets actifs
+          .order('name');
+          
+        if (error) throw error;
+        
+        // Transformer les données pour qu'elles correspondent au format attendu
+        const formattedEffects = data.map(effect => ({
+          value: effect.id,
+          label: effect.name,
+          image: effect.icon_url || effect.preview_url, // Utiliser icon_url ou preview_url comme fallback
+          api_type: effect.api_type || 'aiapi' // 'aiapi' par défaut si non spécifié
+        }));
+        
+        setEffects(formattedEffects);
+      } catch (err) {
+        console.error('Erreur lors du chargement des effets Dessin:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchEffects();
+  }, []);
+
+  // Afficher un état de chargement
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-700"></div>
+        <span className="ml-2 text-gray-600">Chargement des effets...</span>
+      </div>
+    );
+  }
+  
+  // Afficher une erreur si nécessaire
+  if (error) {
+    return (
+      <div className="p-4 text-center">
+        <div className="text-red-500 mb-2">Erreur lors du chargement des effets</div>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+        >
+          Réessayer
+        </button>
+      </div>
+    );
+  }
+  
+  // Si aucun effet n'est trouvé
+  if (effects.length === 0) {
+    return (
+      <div className="p-4 text-center text-gray-500">
+        Aucun effet dessin disponible
+      </div>
+    );
+  }
+
+  // Rendu normal avec les effets chargés
+  return (
+    <div className="flex flex-wrap gap-4">
+      {effects.map((effect) => (
+        <button
+          key={effect.value}
+          onClick={() => onSelect(effect.value)}
+          className={`w-24 ${effect.api_type === 'lightx' ? 'bg-blue-700 hover:bg-blue-900' : 'bg-purple-700 hover:bg-purple-900'} text-white rounded-lg overflow-hidden shadow-md`}
+        >
+          <img src={effect.image} alt={effect.label} className="w-full h-36 object-cover" />
+          <div className="p-2 text-center font-medium text-sm">
+            {effect.label}
+            <span className="text-xs block opacity-75">{effect.api_type === 'lightx' ? 'LightX' : 'Aiapi'}</span>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+};
+
+export default EffectDessin;
