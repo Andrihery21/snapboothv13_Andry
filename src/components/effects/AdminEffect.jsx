@@ -759,7 +759,7 @@ const handleSaveEdit = (updatedEffect) => {
         .getPublicUrl(filePath);
       
       const publicUrl = urlData.publicUrl;
-      console.log("Voici le public URL tsika an", publicUrl);
+      console.log("Voici le public URL", publicUrl);
       
 
     // Paramètres obligatoires pour LightX
@@ -829,7 +829,7 @@ const handleSaveEdit = (updatedEffect) => {
     }
     
     const newUrl = await getOrderStatus(orderId);
-    console.log("Indro ny url les", newUrl );
+    console.log("Url généré", newUrl );
     // Mettre à jour le résultat
     setTestResult({
       success: true,
