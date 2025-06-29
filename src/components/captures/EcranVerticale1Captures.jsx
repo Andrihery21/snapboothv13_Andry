@@ -660,6 +660,8 @@ const selectionnerOptionEffet = (optionValue) => {
     if (!imgSrc) return;
     
     setEnTraitement(true);
+    // Déclarer les variables avec des valeurs par défaut
+  
     
     try {
       // Convertir l'image base64 en blob
@@ -672,6 +674,11 @@ const selectionnerOptionEffet = (optionValue) => {
       // Utiliser les constantes de stockage définies pour cet écran (Vertical 1 - Cartoon et Glow Up)
       const bucketName = contextScreenId;
       const filePath = `${CAPTURES_FOLDER}/${fileName}`;
+
+          // Déclarer les variables de fallback avec les valeurs par défaut
+      let updatedBucketName = bucketName;
+      let updatedFilePath = filePath;
+
       
       // Sauvegarde locale réelle sur disque
       savePhotoLocally(imgSrc, fileName, eventID, standId, LOCAL_CAPTURES_PATH)
