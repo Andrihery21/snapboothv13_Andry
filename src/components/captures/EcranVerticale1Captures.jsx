@@ -744,6 +744,7 @@ const selectionnerOptionEffet = (optionValue) => {
 
       // Appliquer les effets sélectionnés (magique et/ou normal)
       let newUrl = publicUrl;
+      console.log("Itito les ny url an le sary alohan'ny traitement ah ", newUrl);
       
       // Importer la fonction composeEffects pour appliquer les effets
       try {

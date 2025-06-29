@@ -56,6 +56,7 @@ export async function applyCaricature(inputCanvas) {
 async function applyAILabEffect(inputCanvas, effectType) {
   try {
     // Convertir le canvas ou l'URL en blob
+    console.log('Ity les brada ny Cannevas an ', inputCanvas);
     let imageBlob;
     if (typeof inputCanvas === 'string') {
       // Si c'est une URL, récupérer l'image
@@ -94,6 +95,10 @@ async function processImageWithAILab(imageBlob, effectType) {
   try {
     // Préparer les données pour l'API
     const formData = new FormData();
+    console.log("Itito koa ny blob les namana", imageBlob);
+    const objectUrl = URL.createObjectURL(imageBlob);
+        
+        console.log("Itito les ny akama  ny blob les namana", objectUrl);
     formData.append('type', effectType);
     formData.append('image', imageBlob);
 
