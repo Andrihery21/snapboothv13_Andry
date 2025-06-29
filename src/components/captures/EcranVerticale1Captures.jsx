@@ -680,18 +680,18 @@ const selectionnerOptionEffet = (optionValue) => {
       let updatedFilePath = filePath;
 
       
-      // Sauvegarde locale réelle sur disque
-      savePhotoLocally(imgSrc, fileName, eventID, standId, LOCAL_CAPTURES_PATH)
-        .then(result => {
-          if (result.success) {
-            console.log(`Photo sauvegardée localement dans ${result.filePath || LOCAL_CAPTURES_PATH}`);
-          }
-        })
-        .catch(error => {
-          console.warn("Erreur lors de la sauvegarde locale:", error);
-          // Ne pas interrompre le flux si la sauvegarde locale échoue
-        });
-      // Vérifier si le bucket existe
+      // // Sauvegarde locale réelle sur disque
+      // savePhotoLocally(imgSrc, fileName, eventID, standId, LOCAL_CAPTURES_PATH)
+      //   .then(result => {
+      //     if (result.success) {
+      //       console.log(`Photo sauvegardée localement dans ${result.filePath || LOCAL_CAPTURES_PATH}`);
+      //     }
+      //   })
+      //   .catch(error => {
+      //     console.warn("Erreur lors de la sauvegarde locale:", error);
+      //     // Ne pas interrompre le flux si la sauvegarde locale échoue
+      //   });
+      // // Vérifier si le bucket existe
       try {
         console.log(`Tentative de sauvegarde dans le bucket: ${bucketName}, chemin: ${filePath}`);
         
@@ -1203,8 +1203,8 @@ const selectionnerOptionEffet = (optionValue) => {
                     onConfirm={validerPhoto} 
                     onRetry={() => {
                       setImgSrc(null);
-                      setEtape('decompte');
-                      lancerDecompte();
+                      setEtape('accueil');
+                      
                     }} 
                     frameUrl={config?.appearance_params?.frame_url}
                     reviewText={getText('review_text', 'Voulez-vous garder cette photo ?')}
