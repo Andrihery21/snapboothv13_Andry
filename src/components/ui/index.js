@@ -4,7 +4,7 @@ export * from './card';
 export * from './input';
 export * from './select';
 export * from './checkbox';
-export * from './switch';
+export * from './Switch';
 export * from './badge';
 export * from './alert';
 export * from './tooltip';

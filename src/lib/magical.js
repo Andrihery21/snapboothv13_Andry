@@ -20,9 +20,9 @@ export async function applyCartoon(inputCanvas, optionValue = "comic") {
  * @param {HTMLCanvasElement|string} inputCanvas - Canvas source ou URL de l'image
  * @returns {Promise<HTMLCanvasElement>} - Canvas avec l'effet appliqué
  */
-export async function applyUnivers(inputCanvas) {
+export async function applyUnivers(inputCanvas,optionValue = "animation3D") {
   console.log("Application de l'effet Univers");
-  return await applyAILabEffect(inputCanvas, "animation3d");
+  return await applyAILabEffect(inputCanvas,  optionValue);
 }
 
 /**
@@ -30,9 +30,9 @@ export async function applyUnivers(inputCanvas) {
  * @param {HTMLCanvasElement|string} inputCanvas - Canvas source ou URL de l'image
  * @returns {Promise<HTMLCanvasElement>} - Canvas avec l'effet appliqué
  */
-export async function applyDessin(inputCanvas) {
+export async function applyDessin(inputCanvas, optionValue = "sketch") {
   console.log("Application de l'effet Dessin");
-  return await applyAILabEffect(inputCanvas, "sketch");
+  return await applyAILabEffect(inputCanvas , optionValue);
 }
 
 /**
@@ -40,11 +40,11 @@ export async function applyDessin(inputCanvas) {
  * @param {HTMLCanvasElement|string} inputCanvas - Canvas source ou URL de l'image
  * @returns {Promise<HTMLCanvasElement>} - Canvas avec l'effet appliqué
  */
-export async function applyCaricature(inputCanvas) {
+export async function applyCaricature(inputCanvas, optionValue = "comic") {
   console.log("Application de l'effet Caricature");
   // Pour la caricature, on pourrait utiliser une API différente comme LightX
   // Mais pour cet exemple, on va utiliser AILab avec un type spécifique
-  return await applyAILabEffect(inputCanvas, "comic");
+  return await applyAILabEffect(inputCanvas, optionValue);
 }
 
 /**
