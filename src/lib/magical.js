@@ -10,9 +10,9 @@ import axios from 'axios';
  * @param {HTMLCanvasElement|string} inputCanvas - Canvas source ou URL de l'image
  * @returns {Promise<HTMLCanvasElement>} - Canvas avec l'effet appliqué
  */
-export async function applyCartoon(inputCanvas) {
+export async function applyCartoon(inputCanvas, optionValue = "comic") {
   console.log("Application de l'effet Cartoon");
-  return await applyAILabEffect(inputCanvas, "comic");
+  return await applyAILabEffect(inputCanvas, optionValue);
 }
 
 /**
