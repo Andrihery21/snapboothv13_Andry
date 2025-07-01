@@ -20,7 +20,7 @@ export async function applyCartoon(inputCanvas, optionValue = "comic",magicalId 
  * @param {HTMLCanvasElement|string} inputCanvas - Canvas source ou URL de l'image
  * @returns {Promise<HTMLCanvasElement>} - Canvas avec l'effet appliqué
  */
-export async function applyUnivers(inputCanvas,optionValue = "animation3D",magicalId) {
+export async function applyUnivers(inputCanvas,optionValue = "animation3D",magicalId = null) {
   console.log("Application de l'effet Univers");
   return await applyAILabEffect(inputCanvas,  optionValue,magicalId);
 }
@@ -30,9 +30,9 @@ export async function applyUnivers(inputCanvas,optionValue = "animation3D",magic
  * @param {HTMLCanvasElement|string} inputCanvas - Canvas source ou URL de l'image
  * @returns {Promise<HTMLCanvasElement>} - Canvas avec l'effet appliqué
  */
-export async function applyDessin(inputCanvas, optionValue = "sketch",magicalId) {
+export async function applyDessin(inputCanvas, optionValue = "sketch",magicalId  = null) {
   console.log("Application de l'effet Dessin");
-  return await applyAILabEffect(inputCanvas , optionValue,magicalId);
+  return await applyAILabEffect(inputCanvas , optionValue,magicalId = null );
 }
 
 /**
