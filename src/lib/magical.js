@@ -95,7 +95,129 @@ async function applyAILabEffect(inputCanvas, effectType,magicalId) {
  */
 async function processImageWithAILab(imageBlob, effectType, magicalId) {
   try {
+    let processedImageUrl;
     // Préparer les données pour l'API
+    if (magicalId === 'carricature'){
+     const caricatureResponse = await axios.post(
+                    'https://proxy.cors.sh/https://api.lightxeditor.com/external/api/v1/caricature',
+                    {
+                        imageUrl: imageUrl,
+                        styleImageUrl: "", // Remplacez par l'URL de l'image de style si nécessaire
+                        textPrompt: selectedType // Remplacez par le texte approprié
+                    },{
+                        headers: {
+                            'x-api-key': '5c3f8ca0cbb94ee191ffe9ec4c86d8f1_6740bbef11114053828a6346ebfdd5f5_andoraitools',
+                            'Content-Type': 'application/json',
+                            'x-cors-api-key':'temp_3c85bd9782d2d0a181a2b83e6e6a71fc'
+                        }
+                    }
+                );
+                
+                // const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+                // await delay(5000);
+                
+                const orderId = caricatureResponse.data.body.orderId;
+                console.log(orderId);
+                
+                
+                // Deuxième appel API pour obtenir le statut de la commande
+                async function getOrderStatus(orderId) {
+                    let attempt = 0;
+                    while (attempt < 10) { // Limite à 10 tentatives
+                        console.log(`Tentative ${attempt + 1} pour récupérer l'image...`);
+        
+                        const orderStatusResponse = await axios.post(
+                            'https://proxy.cors.sh/https://api.lightxeditor.com/external/api/v1/order-status',
+                            {
+                                orderId: orderId
+                            }, {
+                                headers: {
+                                    'x-api-key': '5c3f8ca0cbb94ee191ffe9ec4c86d8f1_6740bbef11114053828a6346ebfdd5f5_andoraitools',
+                                    'Content-Type': 'application/json',
+                                    'x-cors-api-key': 'temp_3c85bd9782d2d0a181a2b83e6e6a71fc'
+                                }
+                            }
+                        );
+        
+                        const outputUrl = orderStatusResponse.data.body.output;
+        
+                        if (outputUrl) {
+                            console.log("URL de l'image:", outputUrl);
+                            return outputUrl;
+                        }
+        
+                        console.log("Image pas encore prête, nouvelle tentative dans 5 secondes...");
+                        await new Promise(resolve => setTimeout(resolve, 5000)); // Attente de 5 secondes avant la prochaine tentative
+                        attempt++;
+                    }
+        
+                    throw new Error("L'image n'a pas été générée après plusieurs tentatives.");
+                }
+
+               processedImageUrl = await getOrderStatus(orderId);
+                console.log("L'image est prête :", processedImageUrl);
+
+             }else if(( (magicalId === 'univers' && effectType !== 'animation3d') || (magicalId === 'sketch' && effectType === 0) )){
+              
+              const formData = new FormData();
+              formData.append('index', effectType);
+              formData.append('image', imageBlob);
+              formData.append('task_type', "async");
+
+              const response = await axios.post(
+                    'https://www.ailabapi.com/api/image/effects/ai-anime-generator',
+                    formData,
+                    {
+                        headers: {
+                            'ailabapi-api-key': import.meta.env.VITE_AILAB_API_KEY,
+                            'Content-Type': 'multipart/form-data'
+                        }
+                    }
+                );
+                if (response.data.error_code !== 0) {
+                    throw new Error(response.data.error_msg || 'Erreur lors du traitement de l\'image');
+                }
+                 const taskID = response.data.task_id;
+                 console.log("Le task ID est :", taskID);
+
+                 async function getOrderStatus(taskID) {
+                    let attempt = 0;
+                    while (attempt < 20) { // Limite à 10 tentatives
+                        console.log(`Tentative ${attempt + 1} pour récupérer l'image...`);
+        
+                        const orderStatusResponse = await axios.get(
+                            'https://www.ailabapi.com/api/common/query-async-task-result',
+                            {
+                                params: {
+                                    'task_id': taskID // Utilisez directement la variable taskID
+                                },
+                                headers: {
+                                    'ailabapi-api-key': import.meta.env.VITE_AILAB_API_KEY
+                                }
+                            }
+                        );
+                        console.log("Voici est la reponse",orderStatusResponse);
+                        const outputUrl = orderStatusResponse.data.task_status;
+        
+                        if (outputUrl == 2) {
+                            console.log("URL de l'image:", outputUrl);
+                            return orderStatusResponse.data.data.result_url;
+                        }
+        
+                        console.log("Image pas encore prête, nouvelle tentative dans 5 secondes...");
+                        await new Promise(resolve => setTimeout(resolve, 5000)); // Attente de 5 secondes avant la prochaine tentative
+                        attempt++;
+                    }
+        
+                    throw new Error("L'image n'a pas été générée après plusieurs tentatives.");
+                }
+
+               processedImageUrl = await getOrderStatus(taskID);
+                console.log("L'image est prête :", processedImageUrl);
+            
+             }else{
+    
+    
     console.log("itito koa leleka ny magical id ah", magicalId);
     const formData = new FormData();
     console.log("Itito koa ny blob les namana", imageBlob);
@@ -122,8 +244,8 @@ async function processImageWithAILab(imageBlob, effectType, magicalId) {
     }
 
     // Récupérer l'URL de l'image traitée
-    const processedImageUrl = response.data.data.image_url;
-    
+     processedImageUrl = response.data.data.image_url;
+    }
     // Convertir l'URL en canvas
     return await urlToCanvas(processedImageUrl);
   } catch (error) {
