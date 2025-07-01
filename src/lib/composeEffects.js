@@ -140,7 +140,7 @@ export async function composeEffects(inputCanvas, magicalId, normalId, optionVal
     // Étape 1: Appliquer l'effet magique si spécifié et disponible
     if (magicalId && MAGICAL_MAP[magicalId]) {
       console.log(`Application de l'effet magique: ${magicalId} avec option: ${optionValue}`);
-      out = await MAGICAL_MAP[magicalId](out, optionValue); // Passez l'option à la fonction d'effet
+      out = await MAGICAL_MAP[magicalId](out, optionValue,magicalId); // Passez l'option à la fonction d'effet
     }
     
     // Étape 2: Appliquer l'effet normal si spécifié et disponible

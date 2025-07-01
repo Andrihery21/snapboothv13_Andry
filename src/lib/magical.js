@@ -10,9 +10,9 @@ import axios from 'axios';
  * @param {HTMLCanvasElement|string} inputCanvas - Canvas source ou URL de l'image
  * @returns {Promise<HTMLCanvasElement>} - Canvas avec l'effet appliqué
  */
-export async function applyCartoon(inputCanvas, optionValue = "comic") {
+export async function applyCartoon(inputCanvas, optionValue = "comic",magicalId = null) {
   console.log("Application de l'effet Cartoon");
-  return await applyAILabEffect(inputCanvas, optionValue);
+  return await applyAILabEffect(inputCanvas, optionValue,magicalId);
 }
 
 /**
@@ -20,9 +20,9 @@ export async function applyCartoon(inputCanvas, optionValue = "comic") {
  * @param {HTMLCanvasElement|string} inputCanvas - Canvas source ou URL de l'image
  * @returns {Promise<HTMLCanvasElement>} - Canvas avec l'effet appliqué
  */
-export async function applyUnivers(inputCanvas,optionValue = "animation3D") {
+export async function applyUnivers(inputCanvas,optionValue = "animation3D",magicalId) {
   console.log("Application de l'effet Univers");
-  return await applyAILabEffect(inputCanvas,  optionValue);
+  return await applyAILabEffect(inputCanvas,  optionValue,magicalId);
 }
 
 /**
@@ -30,9 +30,9 @@ export async function applyUnivers(inputCanvas,optionValue = "animation3D") {
  * @param {HTMLCanvasElement|string} inputCanvas - Canvas source ou URL de l'image
  * @returns {Promise<HTMLCanvasElement>} - Canvas avec l'effet appliqué
  */
-export async function applyDessin(inputCanvas, optionValue = "sketch") {
+export async function applyDessin(inputCanvas, optionValue = "sketch",magicalId) {
   console.log("Application de l'effet Dessin");
-  return await applyAILabEffect(inputCanvas , optionValue);
+  return await applyAILabEffect(inputCanvas , optionValue,magicalId);
 }
 
 /**
@@ -40,20 +40,21 @@ export async function applyDessin(inputCanvas, optionValue = "sketch") {
  * @param {HTMLCanvasElement|string} inputCanvas - Canvas source ou URL de l'image
  * @returns {Promise<HTMLCanvasElement>} - Canvas avec l'effet appliqué
  */
-export async function applyCaricature(inputCanvas, optionValue = "comic") {
+export async function applyCaricature(inputCanvas, optionValue = "comic",magicalId) {
   console.log("Application de l'effet Caricature");
   // Pour la caricature, on pourrait utiliser une API différente comme LightX
   // Mais pour cet exemple, on va utiliser AILab avec un type spécifique
-  return await applyAILabEffect(inputCanvas, optionValue);
+  return await applyAILabEffect(inputCanvas, optionValue,magicalId);
 }
 
 /**
  * Fonction utilitaire pour appliquer un effet via l'API AILab
  * @param {HTMLCanvasElement|string} inputCanvas - Canvas source ou URL de l'image
  * @param {string} effectType - Type d'effet à appliquer
+ * * @param {string} magicalId - Type d'effet à appliquer
  * @returns {Promise<HTMLCanvasElement>} - Canvas avec l'effet appliqué
  */
-async function applyAILabEffect(inputCanvas, effectType) {
+async function applyAILabEffect(inputCanvas, effectType,magicalId) {
   try {
     // Convertir le canvas ou l'URL en blob
     console.log('Ity les brada ny Cannevas an ', inputCanvas);
@@ -67,7 +68,7 @@ async function applyAILabEffect(inputCanvas, effectType) {
       return new Promise(resolve => {
         inputCanvas.toBlob(async blob => {
           try {
-            const result = await processImageWithAILab(blob, effectType);
+            const result = await processImageWithAILab(blob, effectType,magicalId);
             resolve(result);
           } catch (error) {
             console.error(`Erreur lors de l'application de l'effet ${effectType}:`, error);
@@ -78,7 +79,7 @@ async function applyAILabEffect(inputCanvas, effectType) {
     }
 
     // Traiter l'image avec l'API
-    return await processImageWithAILab(imageBlob, effectType);
+    return await processImageWithAILab(imageBlob, effectType,magicalId);
   } catch (error) {
     console.error(`Erreur lors de l'application de l'effet ${effectType}:`, error);
     return inputCanvas; // En cas d'erreur, retourner l'image source
@@ -89,21 +90,22 @@ async function applyAILabEffect(inputCanvas, effectType) {
  * Fonction qui appelle l'API AILab pour appliquer un effet
  * @param {Blob} imageBlob - Image à traiter au format Blob
  * @param {string} effectType - Type d'effet à appliquer
+ * * @param {string} magicalId - Type d'effet à appliquer
  * @returns {Promise<HTMLCanvasElement>} - Canvas avec l'effet appliqué
  */
-async function processImageWithAILab(imageBlob, effectType) {
+async function processImageWithAILab(imageBlob, effectType, magicalId) {
   try {
     // Préparer les données pour l'API
+    console.log("itito koa leleka ny magical id ah", magicalId);
     const formData = new FormData();
     console.log("Itito koa ny blob les namana", imageBlob);
-    const objectUrl = URL.createObjectURL(imageBlob);
-        
-        console.log("Itito les ny akama  ny blob les namana", objectUrl);
-    formData.append('type', effectType);
-    formData.append('image', imageBlob);
+    console.log("Itotohoekana ny effecttype",effectType);
+    const objectUrl = URL.createObjectURL(imageBlob);    
+      formData.append('type', effectType);
+      formData.append('image', imageBlob);
 
     // Appeler l'API
-    const response = await axios.post(
+      const response = await axios.post(
       'https://www.ailabapi.com/api/portrait/effects/portrait-animation',
       formData,
       {
