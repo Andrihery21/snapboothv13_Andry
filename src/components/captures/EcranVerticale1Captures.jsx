@@ -36,6 +36,47 @@ const getScreenDimensions = (orientation) => {
     ? { width: 1080, height: 1920 } 
     : { width: 1920, height: 1080 };
 };
+
+/* Composant TemplateSelection - NOUVEAU */
+const TemplateSelection = ({ templates, onSelectTemplate, onClose }) => {
+  const { getText } = useTextContent();
+  
+  return (
+    <motion.div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      
+      <div className="max-w-4xl w-full bg-purple-800/90 rounded-xl p-6">
+        <h2 className="text-3xl font-bold text-white text-center mb-6">
+          {getText('select_template', 'Sélectionnez un template')}
+        </h2>
+        
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto">
+          {templates.map((template) => (
+            <motion.div key={template.id}
+              className="bg-white/10 rounded-xl overflow-hidden cursor-pointer"
+              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              onClick={() => onSelectTemplate(template)}>
+              
+              <img src={template.url} alt={template.name} 
+                className="w-full h-48 object-contain bg-white" />
+              <div className="p-3 text-center">
+                <p className="text-white font-medium">{template.name}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+        
+        <div className="mt-8 text-center">
+          <button onClick={onClose}
+            className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-full">
+            {getText('button_close', 'Fermer')}
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = getScreenDimensions(orientation);
 const DEFAULT_FILTER = 'univers';
 
@@ -316,6 +357,10 @@ export default function EcranVerticale1Captures({ eventId }) {
   const [flashEnabled, setFlashEnabled] = useState(false); // Valeur par défaut: flash désactivé
   const [mirrorPreview, setMirrorPreview] = useState(false); // Valeur par défaut: prévisualisation miroir désactivée
  
+  /* NOUVEAUX états pour templates */
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [showTemplateSelection, setShowTemplateSelection] = useState(false);
+  const [templates, setTemplates] = useState([]);
   
   const [selectedMagicalOption, setSelectedMagicalOption] = useState(null);
   const [showEffectOptions, setShowEffectOptions] = useState(false);
@@ -373,6 +418,31 @@ export default function EcranVerticale1Captures({ eventId }) {
 
     fetchDefaultEvent();
   }, [eventID]);
+
+   /* NOUVEAU useEffect pour templates */
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('screens')
+          .select('id, template, name')
+          .not('template', 'is', null);
+        
+        if (error) throw error;
+        
+        const uniqueTemplates = data.map(item => ({
+          id: item.id,
+          url: item.template,
+          name: item.name || item.template.split('/').pop().replace(/\.[^/.]+$/, "")
+        }));
+        
+        setTemplates(uniqueTemplates);
+      } catch (error) {
+        console.error("Erreur:", error);
+      }
+    };
+    fetchTemplates();
+  }, []);
 
   // Mettre à jour le statut de la station de capture
   useEffect(() => {
@@ -956,7 +1026,18 @@ const selectionnerOptionEffet = (optionValue) => {
     setDecompteResultat(null);
     setSelectedMagicalEffect(null);
     setSelectedNormalEffect(null);
+    setSelectedTemplate(null); // Reset aussi le template
     setEtape('accueil');
+  };
+
+   /* NOUVELLES fonctions pour templates */
+  const handleSelectTemplate = (template) => {
+    setSelectedTemplate(template);
+    setShowTemplateSelection(false);
+  };
+
+  const removeTemplate = () => {
+    setSelectedTemplate(null);
   };
 
   // Fonction pour retourner à l'accueil principal
@@ -1040,6 +1121,16 @@ const selectionnerOptionEffet = (optionValue) => {
       transition={{ duration: 0.3 }}
     />
   )}
+
+  {/* Modal template - NOUVEAU */}
+      {showTemplateSelection && (
+        <TemplateSelection 
+          templates={templates}
+          onSelectTemplate={handleSelectTemplate}
+          onClose={() => setShowTemplateSelection(false)}
+        />
+      )}
+
   
       {isLoading ? (
         <div className="min-h-screen flex items-center justify-center">
@@ -1282,13 +1373,33 @@ const selectionnerOptionEffet = (optionValue) => {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.5 }}
                 >
+                  {/* Bouton template - NOUVEAU */}
+                <div className="absolute top-8 right-4 z-50">
+                  {selectedTemplate ? (
+                    <button onClick={removeTemplate} className="bg-red-500 hover:bg-red-600 text-white text-lg font-bold py-3 px-6 rounded-full shadow-lg flex items-center">
+                      Retirer le template
+                    </button>
+                  ) : (
+                    <button onClick={() => setShowTemplateSelection(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold py-3 px-6 rounded-full shadow-lg flex items-center">
+                      Ajouter un template
+                    </button>
+                  )}
+                </div> 
                   {/* Image traitée en arrière-plan */}
-                  <div className="w-full h-full absolute inset-0">
+                  <div className="w-full h-full absolute inset-0 flex items-center justify-center">
+                     <div className="relative" style={{
+                    width: selectedTemplate ? '80%' : '100%',
+                    height: selectedTemplate ? '80%' : '100%'
+                  }}>
                     <img 
                       src={imageTraitee} 
                       alt="Photo traitée" 
                       className="w-full h-full object-contain" 
                     />
+                    {selectedTemplate && (
+                      <img src={selectedTemplate.url} alt="Template" 
+                        className="absolute top-0 left-0 w-full h-full pointer-events-none" />
+                    )}
                     {config?.frame_url && (
                       <img 
                         src={config.frame_url} 
@@ -1297,7 +1408,8 @@ const selectionnerOptionEffet = (optionValue) => {
                       />
                     )}
                   </div>
-                  
+                  </div>
+
                   {/* Bouton Nouvelle photo en haut */}
                   <div className="absolute top-8 left-0 right-0 flex justify-center z-10">
                     <button 
