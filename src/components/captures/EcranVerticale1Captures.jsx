@@ -361,6 +361,8 @@ export default function EcranVerticale1Captures({ eventId }) {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showTemplateSelection, setShowTemplateSelection] = useState(false);
   const [templates, setTemplates] = useState([]);
+  const [imageDimensions, setImageDimensions] = useState({width: 0,height: 0});
+
   
   const [selectedMagicalOption, setSelectedMagicalOption] = useState(null);
   const [showEffectOptions, setShowEffectOptions] = useState(false);
@@ -487,6 +489,14 @@ export default function EcranVerticale1Captures({ eventId }) {
       console.error("Erreur lors de la vérification des commandes:", err);
     }
   };
+
+  //Fonction pour détecter les dimensions de l'image traitée
+  const handleImageLoad = (e) => {
+  setImageDimensions({
+    width: e.target.naturalWidth,
+    height: e.target.naturalHeight
+  });
+};
   
   // Exécuter une commande
   const executeCommand = async (command) => {
@@ -1352,7 +1362,7 @@ const selectionnerOptionEffet = (optionValue) => {
                   transition={{ duration: 0.5 }}
                 >
                   {/* Image traitée */}
-                  <img src={imageTraitee} alt="Photo traitée" className="absolute inset-0 w-full h-full object-cover" />
+                  <img src={imageTraitee} onLoad={handleImageLoad} alt="Photo traitée" className="absolute inset-0 w-full h-full object-cover" />
                   
                   {/* Overlay avec texte */}
                   <div className="absolute bottom-0 left-0 right-0 bg-purple-600/80 p-6 text-center">
@@ -1397,8 +1407,27 @@ const selectionnerOptionEffet = (optionValue) => {
                       className="w-full h-full object-contain" 
                     />
                     {selectedTemplate && (
-                      <img src={selectedTemplate.url} alt="Template" 
-                        className="absolute top-0 left-0 w-full h-full pointer-events-none" />
+                     <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        pointerEvents: 'none'
+                      }}>
+                        <img 
+                          src={selectedTemplate.url} 
+                          style={{
+                            width: `${(imageDimensions.width / imageDimensions.height) * 100}%`,
+                            height: 'auto',
+                            objectFit: 'contain'
+                          }}
+                          alt="Template overlay"
+                        />
+                      </div>
                     )}
                     {config?.frame_url && (
                       <img 
