@@ -242,6 +242,11 @@ export function ScreenConfigProvider({ children, screenId: initialScreenId, even
 
   // Mise à jour de la config avec sauvegarde auto
   const updateConfig = useCallback((key, value) => {
+    if (typeof key !== 'string') {
+    console.error('Type de clé invalide fourni à updateConfig :', key);
+    return; // Quitte la fonction si key n'est pas une chaîne de caractères
+  }
+
     setConfig(prevConfig => {
       if (!prevConfig) return prevConfig;
       
