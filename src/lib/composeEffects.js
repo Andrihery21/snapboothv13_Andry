@@ -4,7 +4,7 @@
  */
 
 import { supabase } from './supabase'; // Importation de l'instance Supabase configurée
-import { applyCartoon, applyUnivers, applyDessin, applyCaricature } from './magical';
+import { applyCartoon, applyUnivers, applyDessin, applyCaricature, applyIaKontext } from './magical';
 import { applyNormal, applyGlowUp, applyBW } from './normal';
 
 // Mapping des identifiants d'effets vers les fonctions d'application
@@ -13,6 +13,7 @@ const MAGICAL_MAP = {
   univers: applyUnivers,
   dessin: applyDessin,
   caricature: applyCaricature,
+  fluxcontext_1:applyIaKontext
 };
 
 const NORMAL_MAP = {
@@ -49,6 +50,18 @@ export const MAGICAL_EFFECTS = [
     name: 'Caricature', 
     description: 'Crée des caricatures amusantes',
     preview: 'https://azafzikvwdartavmpwsc.supabase.co/storage/v1/object/public/assets/Carricature/Light%20X%20-%20big%20head,small%20body,chibi%20caricature%20of%20politician.webp'
+  },
+  { 
+    id: 'fluxcontext_1', 
+    name: 'AI FLUX KONTEXT Together', 
+    description: 'Crée des images amusantes et cohérentes avec une IA ultra-rapide',
+    preview: 'https://azafzikvwdartavmpwsc.supabase.co/storage/v1/object/public/fluxkontext//flux-kontext-apps%201.webp'
+  },
+  { 
+    id: 'fluxcontext2', 
+    name: 'AI FLUX KONTEXT Replicate', 
+    description: 'Génère des visuels hilarants et stylisés, avec une cohérence visuelle impressionnante',
+    preview: 'https://azafzikvwdartavmpwsc.supabase.co/storage/v1/object/public/fluxkontext//flux-kontext-apps%202.webp'
   }
 ];
 

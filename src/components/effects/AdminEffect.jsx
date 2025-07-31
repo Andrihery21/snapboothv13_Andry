@@ -46,7 +46,9 @@ const AdminEffect = () => {
     { id: 'cartoon', label: 'Cartoon', icon: '🎭' },
     { id: 'caricature', label: 'Caricature', icon: '🤡' },
     { id: 'dessin', label: 'Dessin', icon: '✏️' },
-    { id: 'univers', label: 'Univers', icon: '🌌' }
+    { id: 'univers', label: 'Univers', icon: '🌌' },
+    { id: 'fluxcontext_1', label: 'Flux Kontext 1', icon: '⭐' },
+    { id: 'fluxcontext2', label: 'Flux Kontext 2', icon: '⚡' }
   ];
   
   // Charger les effets depuis la configuration
@@ -72,7 +74,9 @@ const AdminEffect = () => {
             cartoon: [],
             caricature: [],
             dessin: [],
-            univers: []
+            univers: [],
+            fluxcontext_1: [],  
+            fluxcontext2: []   
           };
 
         // Garder trace des effets visibles
@@ -391,7 +395,9 @@ const AdminEffect = () => {
               { name: 'index', value: 8 }
             ]
           }
-        ]
+        ],
+         fluxcontext_1: [],
+         fluxcontext2: []  
       };
       setEffects(defaultEffects);
     }
@@ -545,6 +551,57 @@ const AdminEffect = () => {
       // notify('error', `Erreur lors de la suppression: ${error.message}`);
     }
   };
+ 
+  //Actualiser l'effet après ajout 
+  const refreshEffects = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('effects_api')
+      .select('*');
+    
+    if (error) throw error;
+    
+    const organizedEffects = {
+      cartoon: [],
+      caricature: [],
+      dessin: [],
+      univers: [],
+      fluxcontext_1: [],  
+      fluxcontext2: []   
+    };
+
+    const visibleEffects = [];
+    
+    data.forEach(effect => {
+      if (effect.activeEffectType && organizedEffects[effect.activeEffectType]) {
+        organizedEffects[effect.activeEffectType].push({
+          id: effect.id.toString(),
+          name: effect.name,
+          preview: effect.preview,
+          apiName: effect.apiName,
+          apiKey: effect.apiKey,
+          endpoint: effect.endpoint,
+          paramsArray: effect.paramsArray || [],
+          is_visible: effect.is_visible || false
+        });
+        if (effect.is_visible) {
+          visibleEffects.push(effect.id.toString());
+        }
+      }
+    });
+    
+    setEffects(organizedEffects);
+    setSelectedEffects(visibleEffects);
+    
+    updateConfig({
+      ...config,
+      effects: organizedEffects
+    });
+    
+  } catch (error) {
+    console.error('Erreur lors du rafraîchissement des effets:', error);
+  }
+};
 
 // Modifiez la fonction handleEditClick
 const handleEditClick = (effect) => {
@@ -1234,6 +1291,7 @@ const handleSaveEdit = (updatedEffect) => {
         onClose={() => setShowAddEffectPopup(false)}
         // onSave={handleSaveNewEffect}
         // resizeImage={resizeImage}
+        onSave={refreshEffects}
       />
     )}
     </motion.div>

@@ -8,6 +8,10 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import fetch from 'node-fetch';
+import axios from 'axios';
+import FormData from 'form-data';
+import { createReadStream, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
 
 // Importer la configuration du serveur
 import { SERVER_CONFIG } from '../config/serverConfig.js';
@@ -20,6 +24,7 @@ dotenv.config();
 
 const app = express();
 const execAsync = promisify(exec);
+const uploaded = multer({ storage: multer.memoryStorage() });
 
 // Configuration de base
 app.use(cors());
@@ -468,6 +473,213 @@ app.post('/save-capture', upload.single('image'), async (req, res) => {
             error: error.message
         });
     }
+});
+
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
+  const { effectType, magicalId } = req.body;
+  console.log("Fichier reçu :", req.file);
+  console.log("Body reçu :", req.body);
+  const imageBuffer = req.file?.buffer;
+
+  if (!imageBuffer) return res.status(400).json({ error: 'Image manquante.' });
+
+  try {
+    let processedImageUrl = null;
+
+    // ---------------------- LightX (Caricature) ----------------------
+    if (magicalId === 'caricature') {
+      const response = await axios.post(
+        'https://api.lightxeditor.com/external/api/v1/caricature',
+        {
+          imageUrl: "", // TODO: Remplacer par une vraie URL ou solution de hosting
+          styleImageUrl: "",
+          textPrompt: effectType,
+        },
+        {
+          headers: {
+            'x-api-key': '5c3f8ca0cbb94ee191ffe9ec4c86d8f1_6740bbef11114053828a6346ebfdd5f5_andoraitools',
+            'Content-Type': 'application/json',
+            'x-cors-api-key': 'temp_3c85bd9782d2d0a181a2b83e6e6a71fc',
+          },
+        }
+      );
+
+      const orderId = response.data.body.orderId;
+
+      // Polling
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const status = await axios.post(
+          'https://proxy.cors.sh/https://api.lightxeditor.com/external/api/v1/order-status',
+          { orderId },
+          {
+            headers: {
+              'x-api-key': '5c3f8ca0cbb94ee191ffe9ec4c86d8f1_6740bbef11114053828a6346ebfdd5f5_andoraitools',
+              'Content-Type': 'application/json',
+              'x-cors-api-key': 'temp_3c85bd9782d2d0a181a2b83e6e6a71fc',
+            },
+          }
+        );
+
+        const outputUrl = status.data.body.output;
+        if (outputUrl) {
+          processedImageUrl = outputUrl;
+          break;
+        }
+
+        await delay(5000);
+      }
+
+      if (!processedImageUrl) throw new Error("Échec génération image LightX.");
+    }
+
+   // ---------------------- AILab Anime Generator ----------------------
+    else if ((magicalId === 'univers' && effectType !== 'animation3d') || (magicalId === 'sketch' && effectType === '0')) {
+      // Créer un fichier temporaire
+      const tempFilePath = path.join(tmpdir(), `temp_image_${Date.now()}.jpg`);
+      writeFileSync(tempFilePath, imageBuffer);
+      
+      try {
+        const formData = new FormData();
+        formData.append('index', effectType);
+        formData.append('image', createReadStream(tempFilePath));
+        formData.append('task_type', 'async');
+
+        const animeRes = await axios.post(
+          'https://www.ailabapi.com/api/image/effects/ai-anime-generator',
+          formData,
+          {
+            headers: {
+              'ailabapi-api-key': process.env.AILAB_API_KEY,
+              ...formData.getHeaders(),
+            },
+          }
+        );
+        
+        // Nettoyer le fichier temporaire
+        fs.unlinkSync(tempFilePath);
+        
+        const taskID = animeRes.data.task_id;
+
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const poll = await axios.get('https://www.ailabapi.com/api/common/query-async-task-result', {
+          params: { task_id: taskID },
+          headers: {
+            'ailabapi-api-key': process.env.AILAB_API_KEY,
+          },
+        });
+
+        if (poll.data.task_status === 2) {
+          processedImageUrl = poll.data.data.result_url;
+          break;
+        }
+
+        await delay(500);
+      }
+
+      if (!processedImageUrl) throw new Error("AILab Anime : Image non générée.");
+      } catch (error) {
+        // Nettoyer le fichier temporaire en cas d'erreur
+        if (fs.existsSync(tempFilePath)) {
+          fs.unlinkSync(tempFilePath);
+        }
+        throw error;
+      }
+    }
+
+    // ---------------------- Flux Kontext (BFL) ----------------------
+    else if (magicalId === 'fluxcontext_1') {
+      const base64 = imageBuffer.toString('base64');
+
+      const payload = {
+        prompt: effectType,
+        input_image: base64,
+      };
+
+      const postRes = await axios.post(
+        'https://api.bfl.ai/v1/flux-kontext-pro',
+        payload,
+        {
+          headers: {
+            'accept': 'application/json',
+            'x-key': process.env.BFL_FLUX_KONTEXT_KEY,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const pollingUrl = postRes.data.polling_url;
+
+      let finalImageUrl = null;
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const pollRes = await axios.get(pollingUrl, {
+          headers: {
+            'x-key': process.env.BFL_FLUX_KONTEXT_KEY,
+            'accept': 'application/json',
+          },
+        });
+
+        if (pollRes.data.status === "Ready" && pollRes.data.result?.sample) {
+          finalImageUrl = pollRes.data.result.sample;
+          processedImageUrl = finalImageUrl;
+          break;
+        } else if (["Error", "Failed"].includes(pollRes.data.status)) {
+          throw new Error("Échec BFL Kontext : " + pollRes.data.detail);
+        }
+
+        await delay(500);
+      }
+
+      if (!processedImageUrl) throw new Error("BFL Kontext : Image non générée.");
+    }
+
+    // ---------------------- AILab Portrait ----------------------
+    else {
+     // Créer un fichier temporaire
+      const tempFilePath = path.join(tmpdir(), `temp_image_${Date.now()}.jpg`);
+      writeFileSync(tempFilePath, imageBuffer);
+      
+      try {
+        const formData = new FormData();
+        formData.append('type', effectType);
+        formData.append('image', createReadStream(tempFilePath));
+
+        const portraitRes = await axios.post(
+          'https://www.ailabapi.com/api/portrait/effects/portrait-animation',
+          formData,
+          {
+            headers: {
+              'ailabapi-api-key': 'H5aA5NIMXfDKCUjdVT0pOGLTJlWU0Ifj4ZhguGzLSbwE1e9WOyV6xQFyZQ6re3mB', 
+              ...formData.getHeaders(),
+            },
+          }
+        );
+        
+        // Nettoyer le fichier temporaire
+        fs.unlinkSync(tempFilePath);
+
+        if (portraitRes.data.error_code !== 0) {
+          throw new Error(portraitRes.data.error_msg || 'AILab Portrait : Erreur inconnue');
+        }
+
+        processedImageUrl = portraitRes.data.data.image_url;
+      } catch (error) {
+        // Nettoyer le fichier temporaire en cas d'erreur
+        if (fs.existsSync(tempFilePath)) {
+          fs.unlinkSync(tempFilePath);
+        }
+        throw error;
+      }
+    }
+
+    // Réponse finale
+    return res.json({ imageUrl: processedImageUrl });
+
+  } catch (err) {
+    console.error('Erreur lors du traitement de l’effet IA :', err);
+    return res.status(500).json({ error: err.message || 'Erreur interne serveur' });
+  }
 });
 
 

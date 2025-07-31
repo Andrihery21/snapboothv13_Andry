@@ -77,7 +77,7 @@ const TemplateSelection = ({ templates, onSelectTemplate, onClose }) => {
   );
 };
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = getScreenDimensions(orientation);
+
 const DEFAULT_FILTER = 'univers';
 
 // Constantes pour le stockage des photos
@@ -210,7 +210,7 @@ const TraitementEnCours = ({ message }) => {
             className="h-full bg-purple-600 rounded-full"
             initial={{ width: "0%" }}
             animate={{ width: "100%" }}
-            transition={{ duration: 3, repeat: Infinity }}
+            transition={{ duration: 25, repeat: Infinity }}
           />
         </div>
       </motion.div>
@@ -332,7 +332,7 @@ export default function EcranVerticale1Captures({ eventId }) {
   const params = useParams();
   const webcamRef = useRef(null);
   const [orientation, setOrientation] = useState('vertical'); // Valeur par défaut: vertical
-  
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = getScreenDimensions(orientation);
   const [imgSrc, setImgSrc] = useState(null);
   const [decompte, setDecompte] = useState(null);
   const [etape, setEtape] = useState('accueil'); // accueil, decompte, validation, magicalEffect, normalEffect, traitement, resultat, qrcode
