@@ -246,6 +246,81 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
   );
 };
 
+//Composant de slider de comparaison 
+const ImageComparisonSlider = ({ beforeImage, afterImage }) => {
+  const [sliderPosition, setSliderPosition] = useState(50);
+  const containerRef = useRef(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+    useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        setDimensions({
+          width: containerRef.current.offsetWidth,
+          height: containerRef.current.offsetHeight
+        });
+      }
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
+
+  const handleMove = (e) => {
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const percent = Math.round((x / rect.width) * 100);
+    setSliderPosition(percent);
+  };
+
+  return (
+    <div 
+      ref={containerRef}
+      className="relative w-full h-full overflow-hidden"
+      style={{ 
+        width: '100%',
+        height: '100vh', // Prend toute la hauteur de l'écran
+        position: 'relative'
+      }}
+      onMouseMove={handleMove}
+      onTouchMove={(e) => handleMove(e.touches[0])}
+    >
+      {/* Image originale (avant) */}
+      <img 
+        src={beforeImage} 
+        alt="Original" 
+        className="absolute inset-0 w-full h-full object-contain"
+      />
+      
+      {/* Image traitée (après) avec masque */}
+      <div 
+        className="absolute inset-0 w-full h-full overflow-hidden"
+        style={{ width: `${sliderPosition}%` }}
+      >
+        <img 
+          src={afterImage} 
+          alt="Processed" 
+          className="w-full h-full object-contain"
+        />
+      </div>
+      
+      {/* Curseur du slider */}
+      <div 
+        className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize shadow-lg"
+        style={{ left: `calc(${sliderPosition}% - 2px)` }}
+      >
+        <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-5 h-10 bg-white rounded-full flex items-center justify-center">
+          <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 // Composant pour la sélection des options d'effet magique
 const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => {
   const { getText } = useTextContent();
@@ -1353,22 +1428,19 @@ const selectionnerOptionEffet = (optionValue) => {
               )}
               
               {/* Écran de résultat */}
-              {etape === 'resultat' && imageTraitee && (
-                <motion.div 
-                  className="min-h-screen flex flex-col relative"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  {/* Image traitée */}
-                  <img src={imageTraitee} onLoad={handleImageLoad} alt="Photo traitée" className="absolute inset-0 w-full h-full object-cover" />
+             {etape === 'resultat' && imageTraitee && (
+                <motion.div className="min-h-screen flex flex-col relative">
+                  <ImageComparisonSlider 
+                    beforeImage={imgSrc} 
+                    afterImage={imageTraitee} 
+                  />
                   
                   {/* Overlay avec texte */}
                   <div className="absolute bottom-0 left-0 right-0 bg-purple-600/80 p-6 text-center">
-                    <h2 className="text-2xl font-bold text-white">{getText('result_text', 'Votre photo est prête!')}</h2>
+                    <h2 className="text-2xl font-bold text-white">Comparez avant/après</h2>
+                    <p className="text-gray-200 mt-2">Glissez la ligne pour voir les différences</p>
                     {decompteResultat !== null && decompteResultat > 0 && (
-                      <p className="text-gray-200 mt-2">Suite dans {decompteResultat}s...</p>
+                      <p className="text-gray-200">Suite dans {decompteResultat}s...</p>
                     )}
                   </div>
                 </motion.div>
@@ -1383,7 +1455,7 @@ const selectionnerOptionEffet = (optionValue) => {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.5 }}
                 >
-                  {/* Bouton template - NOUVEAU */}
+               {/* Bouton template - NOUVEAU */}
                 <div className="absolute top-8 right-4 z-50">
                   {selectedTemplate ? (
                     <button onClick={removeTemplate} className="bg-red-500 hover:bg-red-600 text-white text-lg font-bold py-3 px-6 rounded-full shadow-lg flex items-center">

@@ -12,6 +12,8 @@ import axios from 'axios';
 import FormData from 'form-data';
 import { createReadStream, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
+import { supabase } from '../lib/supabase.js'; 
+import { v4 as uuidv4 } from 'uuid';
 
 // Importer la configuration du serveur
 import { SERVER_CONFIG } from '../config/serverConfig.js';
@@ -490,10 +492,36 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
 
     // ---------------------- LightX (Caricature) ----------------------
     if (magicalId === 'caricature') {
+
+       // Étape 1 : Télécharger l'image vers le bucket Supabase
+      const bucketName = 'before.lightx';
+      const fileKey = `${uuidv4()}.jpg`; // Générer un nom de fichier unique
+
+      const { data, error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(fileKey, imageBuffer, {
+          contentType: req.file.mimetype,
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.error('Erreur lors du téléchargement vers Supabase:', uploadError);
+        return res.status(500).json({ error: 'Erreur lors du téléchargement de l\'image' });
+      }
+
+      // Étape 2 : Obtenir l'URL publique de l'image
+      const { data: publicUrlData } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(fileKey);
+
+      const imageUrl = publicUrlData.publicUrl;
+      console.log(`Image téléchargée avec succès. URL Supabase: ${imageUrl}`);
+      
       const response = await axios.post(
         'https://api.lightxeditor.com/external/api/v1/caricature',
         {
-          imageUrl: "", // TODO: Remplacer par une vraie URL ou solution de hosting
+          imageUrl: imageUrl, // TODO: Remplacer par une vraie URL ou solution de hosting
           styleImageUrl: "",
           textPrompt: effectType,
         },
@@ -603,7 +631,7 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
         {
           headers: {
             'accept': 'application/json',
-            'x-key': process.env.BFL_FLUX_KONTEXT_KEY,
+            'x-key': '8ae0661a-4237-4ba3-8b2e-7806e83a0a85',
             'Content-Type': 'application/json',
           },
         }
@@ -615,14 +643,14 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
       for (let attempt = 0; attempt < 100; attempt++) {
         const pollRes = await axios.get(pollingUrl, {
           headers: {
-            'x-key': process.env.BFL_FLUX_KONTEXT_KEY,
+            'x-key': '8ae0661a-4237-4ba3-8b2e-7806e83a0a85',
             'accept': 'application/json',
           },
         });
 
         if (pollRes.data.status === "Ready" && pollRes.data.result?.sample) {
           finalImageUrl = pollRes.data.result.sample;
-          processedImageUrl = finalImageUrl;
+          processedImageUrl = `https://corsproxy.io/?${encodeURIComponent(finalImageUrl)}`;
           break;
         } else if (["Error", "Failed"].includes(pollRes.data.status)) {
           throw new Error("Échec BFL Kontext : " + pollRes.data.detail);
@@ -650,7 +678,7 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
           formData,
           {
             headers: {
-              'ailabapi-api-key': 'H5aA5NIMXfDKCUjdVT0pOGLTJlWU0Ifj4ZhguGzLSbwE1e9WOyV6xQFyZQ6re3mB', 
+              'ailabapi-api-key': 'AuEAFWlth9dXcKe0XhYFGoVBbp12ryq6EVRgG25fNsiM5nxf1Zg4CbB7lpva6Lkw', 
               ...formData.getHeaders(),
             },
           }
