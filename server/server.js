@@ -12,11 +12,18 @@ import axios from 'axios';
 import FormData from 'form-data';
 import { createReadStream, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
-import { supabase } from '../lib/supabase.js'; 
+import { supabase } from './lib/supabase.js';
+// import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
+
+
 
 // Importer la configuration du serveur
 import { SERVER_CONFIG } from '../config/serverConfig.js';
+// const supabaseUrl = 'https://azafzikvwdartavmpwsc.supabase.co';
+// const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6YWZ6aWt2d2RhcnRhdm1wd3NjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk0NjM1NDMsImV4cCI6MjA1NTAzOTU0M30.MNV4la2gg_gwetjzx5ALYvZzEOU2_JW01kfdVk-ub40';
+// const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -521,15 +528,14 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
       const response = await axios.post(
         'https://api.lightxeditor.com/external/api/v1/caricature',
         {
-          imageUrl: imageUrl, // TODO: Remplacer par une vraie URL ou solution de hosting
+          imageUrl: imageUrl, // Vrai URL 
           styleImageUrl: "",
           textPrompt: effectType,
         },
         {
           headers: {
             'x-api-key': '5c3f8ca0cbb94ee191ffe9ec4c86d8f1_6740bbef11114053828a6346ebfdd5f5_andoraitools',
-            'Content-Type': 'application/json',
-            'x-cors-api-key': 'temp_3c85bd9782d2d0a181a2b83e6e6a71fc',
+            'Content-Type': 'application/json'
           },
         }
       );
@@ -539,13 +545,12 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
       // Polling
       for (let attempt = 0; attempt < 10; attempt++) {
         const status = await axios.post(
-          'https://proxy.cors.sh/https://api.lightxeditor.com/external/api/v1/order-status',
+          'https://api.lightxeditor.com/external/api/v1/order-status',
           { orderId },
           {
             headers: {
               'x-api-key': '5c3f8ca0cbb94ee191ffe9ec4c86d8f1_6740bbef11114053828a6346ebfdd5f5_andoraitools',
-              'Content-Type': 'application/json',
-              'x-cors-api-key': 'temp_3c85bd9782d2d0a181a2b83e6e6a71fc',
+              'Content-Type': 'application/json'
             },
           }
         );
@@ -579,7 +584,7 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
           formData,
           {
             headers: {
-              'ailabapi-api-key': process.env.AILAB_API_KEY,
+              'ailabapi-api-key': 'process.env.AILAB_API_KEY',
               ...formData.getHeaders(),
             },
           }

@@ -36,7 +36,7 @@ export async function applyUnivers(inputCanvas,optionValue = "animation3D",magic
  */
 export async function applyDessin(inputCanvas, optionValue = "sketch",magicalId  = null) {
   console.log("Application de l'effet Dessin");
-  return await applyAILabEffect(inputCanvas , optionValue,magicalId = null );
+  return await applyAILabEffect(inputCanvas , optionValue,magicalId);
 }
 
 /**
@@ -48,7 +48,7 @@ export async function applyCaricature(inputCanvas, optionValue = "comic",magical
   console.log("Application de l'effet Caricature");
   // Pour la caricature, on pourrait utiliser une API différente comme LightX
   // Mais pour cet exemple, on va utiliser AILab avec un type spécifique
-  return await applyAILabEffect(inputCanvas, optionValue,magicalId = null);
+  return await applyAILabEffect(inputCanvas, optionValue,magicalId);
 }
 
 /**

@@ -1,65 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
-import { notify } from './notifications';
-import { Logger } from './logger';
 
-const logger = new Logger('Supabase');
+// Récupération des variables d'environnement
+// Assurez-vous d'avoir bien configuré 'dotenv' dans votre fichier server.js
+const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://azafzikvwdartavmpwsc.supabase.co';
+const supabaseServiceRoleKey = process.env.VITE_SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6YWZ6aWt2d2RhcnRhdm1wd3NjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczOTQ2MzU0MywiZXhwIjoyMDU1MDM5NTQzfQ.dhp5ClnWf4PDgtd-TsPSObqcjJqF_zXL94N3KlydAS4';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!supabaseUrl || !supabaseServiceRoleKey) {
   throw new Error('Variables d\'environnement Supabase manquantes');
 }
 
-// Création d'une instance unique de Supabase
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-    storage: window.localStorage,
-    storageKey: 'snap-booth-auth',
-    flowType: 'pkce'
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10
-    },
-    config: {
-      timeout: 30000, // 30 secondes
-      heartbeat: {
-        interval: 15000 // 15 secondes
-      }
-    }
-  }
-});
+// Création d'une instance unique de Supabase pour le serveur
+// La configuration est simplifiée, sans la logique d'authentification client-side
+const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-// Vérification de la connexion
-supabase.auth.onAuthStateChange((event, session) => {
-  logger.info('Changement d\'état d\'authentification', { event });
-  
-  if (event === 'SIGNED_IN') {
-    logger.info('Utilisateur connecté', { userId: session?.user?.id });
-    notify.success('Connecté avec succès');
-  } else if (event === 'SIGNED_OUT') {
-    logger.info('Utilisateur déconnecté');
-    notify.success('Déconnecté avec succès');
-  } else if (event === 'TOKEN_REFRESHED') {
-    logger.info('Token rafraîchi');
-  }
-});
-
-// Vérification initiale de la connexion
-supabase.auth.getSession().then(({ data: { session }, error }) => {
-  if (error) {
-    logger.error('Erreur lors de la vérification de la session', error);
-    notify.error('Erreur de connexion à Supabase');
-  } else if (session) {
-    logger.info('Session existante trouvée', { userId: session.user.id });
-  } else {
-    logger.info('Aucune session active');
-  }
-});
+console.log('Client Supabase initialisé pour le serveur.');
 
 // Fonction utilitaire pour créer des souscriptions en temps réel
 export const createRealtimeSubscription = (channel, table, filter = {}, callbacks = {}) => {
@@ -74,7 +28,7 @@ export const createRealtimeSubscription = (channel, table, filter = {}, callback
         ...filter
       },
       (payload) => {
-        logger.debug('Changement en temps réel reçu', { channel, table, payload });
+        console.log('Changement en temps réel reçu', { channel, table, payload });
         
         if (payload.eventType === 'INSERT' && callbacks.onInsert) {
           callbacks.onInsert(payload.new);
@@ -86,7 +40,7 @@ export const createRealtimeSubscription = (channel, table, filter = {}, callback
       }
     )
     .subscribe((status) => {
-      logger.info('Statut de la souscription', { channel, status });
+      console.log('Statut de la souscription', { channel, status });
       if (status === 'SUBSCRIBED' && callbacks.onSubscribe) {
         callbacks.onSubscribe();
       } else if (status === 'CLOSED' && callbacks.onClose) {
