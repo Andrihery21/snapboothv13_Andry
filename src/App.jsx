@@ -15,9 +15,9 @@ import AdminEventSelector from './pages/AdminEventSelector';
 import DesignSystem from './pages/DesignSystem';
 
 import EcranVerticale1Captures from './components/captures/EcranVerticale1Captures';
-import EcranVerticale2Captures from './components/captures/EcranVerticale2Captures';
-import EcranVerticale3Captures from './components/captures/EcranVerticale3Captures';
-import EcranHorizontale1Captures from './components/captures/EcranHorizontale1Captures';
+import EcranVerticale2Captures from './components/captures/EcranVertical2Capture';
+import EcranVerticale3Captures from './components/captures/EcranVertical3Capture';
+import EcranHorizontale1Captures from './components/captures/EcranHorizontal1Capture';
 import EcranPropsCaptures from './components/captures/EcranPropsCaptures';
 import EcranVideoCaptures from './components/captures/EcranVideoCaptures';
 import { useAuthStore } from '../store/auth';
