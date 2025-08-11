@@ -441,6 +441,7 @@ export default function EcranVerticale1Captures({ eventId }) {
   
   const [selectedMagicalOption, setSelectedMagicalOption] = useState(null);
   const [showEffectOptions, setShowEffectOptions] = useState(false);
+  
 
   const { config, screenId: contextScreenId, saveScreenConfig, updateConfig } = useScreenConfig();
   // Utiliser notre hook pour accéder aux textes personnalisés
@@ -759,10 +760,22 @@ const selectionnerOptionEffet = (optionValue) => {
 
   // Fonction pour démarrer le photobooth
   const demarrerPhotobooth = () => {
-    if (etape !== 'accueil') return;
+  if (etape !== 'accueil') return;
+  
+  // Si des templates sont disponibles, passer à l'écran de sélection
+  if (templates.length > 0) {
+    setEtape('templateSelection');
+  } else {
+    // Sinon, passer directement au décompte
     setEtape('decompte');
     lancerDecompte();
-  };
+  }
+};
+const confirmerTemplate = () => {
+  setEtape('decompte');
+  lancerDecompte();
+};
+
 
   // Fonction pour lancer le décompte et prendre une photo
   const lancerDecompte = () => {
@@ -1330,18 +1343,91 @@ const selectionnerOptionEffet = (optionValue) => {
                   </div>
                 </motion.div>
               )}
+
+              {/* Nouvel écran de sélection de template */}
+                {etape === 'templateSelection' && (
+                  <motion.div 
+                    className="min-h-screen flex flex-col items-center justify-center bg-black/90"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <div className="max-w-4xl w-full bg-purple-800/90 rounded-xl p-6">
+                      <h2 className="text-3xl font-bold text-white text-center mb-6">
+                        {getText('select_template', 'Sélectionnez un template')}
+                      </h2>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto">
+                        {/* Option "Aucun template" */}
+                        <motion.div
+                          className="bg-white/10 rounded-xl overflow-hidden cursor-pointer"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => {
+                            setSelectedTemplate(null);
+                            confirmerTemplate();
+                          }}
+                        >
+                          <div className="w-full h-48 bg-gray-800 flex items-center justify-center">
+                            <span className="text-white text-xl">Aucun template</span>
+                          </div>
+                          <div className="p-3 text-center">
+                            <p className="text-white font-medium">Pas de template</p>
+                          </div>
+                        </motion.div>
+                        
+                        {/* Liste des templates */}
+                        {templates.map((template) => (
+                          <motion.div 
+                            key={template.id}
+                            className="bg-white/10 rounded-xl overflow-hidden cursor-pointer"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                              setSelectedTemplate(template);
+                              confirmerTemplate();
+                            }}
+                          >
+                            <img 
+                              src={template.url} 
+                              alt={template.name} 
+                              className="w-full h-48 object-contain bg-white" 
+                            />
+                            <div className="p-3 text-center">
+                              <p className="text-white font-medium">{template.name}</p>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                      
+                      <div className="mt-8 text-center">
+                        <button 
+                          onClick={() => setEtape('accueil')}
+                          className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-full"
+                        >
+                          {getText('button_back', 'Retour')}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
               
               {/* Écran de décompte */}
               {etape === 'decompte' && (
                 <motion.div 
-                  className="min-h-screen flex items-center justify-center"
+                  className="min-h-screen flex items-center justify-center relative bg-gradient-to-b from-indigo-900 to-purple-900"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  {/* Webcam */}
-                  <Webcam
+                      {/* Conteneur principal */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                {/* Webcam - doit être positionnée derrière */}
+                <div className="absolute inset-0 z-0">
+                 <Webcam
                     audio={false}
                     ref={webcamRef}
                     screenshotFormat="image/jpeg"
@@ -1350,13 +1436,28 @@ const selectionnerOptionEffet = (optionValue) => {
                       height: SCREEN_HEIGHT,
                       facingMode: "user"
                     }}
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                     onUserMediaError={(err) => {
                       console.error("Erreur webcam:", err);
                       setWebcamError(`Erreur d'accès à la caméra: ${err.name}`);
                     }}
                   />
-                  
+                  </div>
+      
+                   {/* Template avec fond transparent - positionné au-dessus */}
+                    {selectedTemplate && (
+                     <div className="relative z-10 w-full h-full flex items-center justify-center">
+                        <img 
+                            src={selectedTemplate.url} 
+                            alt="Template sélectionné" 
+                           
+                            className="max-w-full max-h-full object-contain"
+                          />
+                        </div>   
+                    
+                    )}
+                    </div>
+              
                   {/* Décompte */}
                   <div className="relative z-10 flex items-center justify-center">
                     <div className="text-9xl font-bold text-white animate-pulse shadow-lg">
@@ -1383,7 +1484,7 @@ const selectionnerOptionEffet = (optionValue) => {
                       setEtape('accueil');
                       
                     }} 
-                    frameUrl={config?.appearance_params?.frame_url}
+                    frameUrl={selectedTemplate ? selectedTemplate.url : config?.appearance_params?.frame_url}
                     reviewText={getText('review_text', 'Voulez-vous garder cette photo ?')}
                   />
                 </motion.div>
@@ -1427,24 +1528,42 @@ const selectionnerOptionEffet = (optionValue) => {
                 <TraitementEnCours message={getText('processing_text', 'Un peu de patience!')} />
               )}
               
-              {/* Écran de résultat */}
-             {etape === 'resultat' && imageTraitee && (
-                <motion.div className="min-h-screen flex flex-col relative">
-                  <ImageComparisonSlider 
-                    beforeImage={imgSrc} 
-                    afterImage={imageTraitee} 
-                  />
-                  
-                  {/* Overlay avec texte */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-purple-600/80 p-6 text-center">
-                    <h2 className="text-2xl font-bold text-white">Comparez avant/après</h2>
-                    <p className="text-gray-200 mt-2">Glissez la ligne pour voir les différences</p>
-                    {decompteResultat !== null && decompteResultat > 0 && (
-                      <p className="text-gray-200">Suite dans {decompteResultat}s...</p>
-                    )}
-                  </div>
-                </motion.div>
-              )}
+            {/* Écran de résultat */}
+                  {etape === 'resultat' && imageTraitee && (
+                    <motion.div className="min-h-screen flex flex-col relative">
+                      {/* Conteneur principal */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-white">
+                        {/* Image traitée */}
+                        <div className="relative" style={{ width: '80%', aspectRatio: `${imageDimensions.width}/${imageDimensions.height}` }}>
+                          <img 
+                            src={imageTraitee} 
+                            alt="Photo traitée" 
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        
+                        {/* Template par-dessus */}
+                        {selectedTemplate && (
+                          <div className="absolute inset-0 pointer-events-none">
+                            <img 
+                              src={selectedTemplate.url} 
+                              alt="Template" 
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Overlay avec texte */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-6 text-center">
+                        <h2 className="text-2xl font-bold text-white">Comparez avant/après</h2>
+                        <p className="text-gray-200 mt-2">Glissez la ligne pour voir les différences</p>
+                        {decompteResultat !== null && decompteResultat > 0 && (
+                          <p className="text-gray-200">Suite dans {decompteResultat}s...</p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
               
               {/* Écran QR Code */}
               {etape === 'qrcode' && (
@@ -1455,100 +1574,121 @@ const selectionnerOptionEffet = (optionValue) => {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.5 }}
                 >
-               {/* Bouton template - NOUVEAU */}
-                <div className="absolute top-8 right-4 z-50">
-                  {selectedTemplate ? (
-                    <button onClick={removeTemplate} className="bg-red-500 hover:bg-red-600 text-white text-lg font-bold py-3 px-6 rounded-full shadow-lg flex items-center">
-                      Retirer le template
-                    </button>
-                  ) : (
-                    <button onClick={() => setShowTemplateSelection(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold py-3 px-6 rounded-full shadow-lg flex items-center">
-                      Ajouter un template
-                    </button>
-                  )}
-                </div> 
-                  {/* Image traitée en arrière-plan */}
-                  <div className="w-full h-full absolute inset-0 flex items-center justify-center">
-                     <div className="relative" style={{
-                    width: selectedTemplate ? '80%' : '100%',
-                    height: selectedTemplate ? '80%' : '100%'
-                  }}>
-                    <img 
-                      src={imageTraitee} 
-                      alt="Photo traitée" 
-                      className="w-full h-full object-contain" 
-                    />
+                  {/* Image traitée en arrière-plan (avec template déjà intégré) */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-white">
+                    {/* Image traitée */}
+                    <div className="relative" style={{ width: '80%', aspectRatio: `${imageDimensions.width}/${imageDimensions.height}` }}>
+                      <img 
+                        src={imageTraitee} 
+                        alt="Photo traitée" 
+                        className="w-full h-full object-contain"
+                        onLoad={handleImageLoad}
+                      />
+                    </div>
+                    
+                    {/* Template par-dessus */}
                     {selectedTemplate && (
-                     <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        pointerEvents: 'none'
-                      }}>
+                      <div className="absolute inset-0 pointer-events-none">
                         <img 
                           src={selectedTemplate.url} 
-                          style={{
-                            width: `${(imageDimensions.width / imageDimensions.height) * 100}%`,
-                            height: 'auto',
-                            objectFit: 'contain'
-                          }}
-                          alt="Template overlay"
+                          alt="Template" 
+                          className="w-full h-full object-contain"
                         />
                       </div>
                     )}
-                    {config?.frame_url && (
-                      <img 
-                        src={config.frame_url} 
-                        alt="Cadre" 
-                        className="absolute top-0 left-0 w-full h-full pointer-events-none" 
-                      />
-                    )}
-                  </div>
                   </div>
 
                   {/* Bouton Nouvelle photo en haut */}
                   <div className="absolute top-8 left-0 right-0 flex justify-center z-10">
-                    <button 
-                      className="bg-purple-600 hover:bg-purple-700 text-white text-lg font-bold py-3 px-8 rounded-full shadow-lg"
+                    <motion.button
+                      className="bg-purple-600 hover:bg-purple-700 text-white text-lg font-bold py-3 px-8 rounded-full shadow-lg flex items-center"
                       onClick={retourAccueilPhotobooth}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      Nouvelle photo
-                    </button>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      {getText('new_photo_button', 'Nouvelle photo')}
+                    </motion.button>
                   </div>
                   
                   {/* QR Code au centre */}
                   <div className="absolute top-1/4 left-0 right-0 flex flex-col items-center z-10">
-                    <div className="bg-white p-4 rounded-xl shadow-lg mb-4">
-                      <QRCode imageUrl={imageTraitee} showQROnly={true} size={180} />
-                    </div>
-                    <p className="text-center text-purple-800 font-medium">Scanner<br/>le QR code</p>
+                    <motion.div 
+                      className="bg-white p-4 rounded-xl shadow-lg mb-4"
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      <QRCode 
+                        imageUrl={imageTraitee} 
+                        showQROnly={true} 
+                        size={180} 
+                        qrColor="#7e22ce"  // Couleur violette
+                        bgColor="#fef3c7"   // Couleur ambre clair
+                      />
+                    </motion.div>
+                    <motion.p 
+                      className="text-center text-purple-800 font-medium text-xl"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 }}
+                    >
+                      {getText('scan_qr_text', 'Scannez le QR code')}
+                    </motion.p>
                   </div>
                   
                   {/* Texte informatif en bas */}
-                  <div className="absolute bottom-16 left-0 right-0 text-center px-6 z-10">
-                    <p className="text-gray-100 mb-4">{getText('qr_text', 'Si vous souhaitez imprimer ou envoyer votre photo par e-mail, rendez-vous sur Snap Print!')}</p>
-                  </div>
-                  
-                  {/* Pied de page avec date */}
-                  <div className="absolute bottom-4 left-0 right-0 text-center z-10">
-                    <p className="text-sm text-gray-600">
-                      {getText('footer_text', 'Date de l\'evenement')}
+                  <motion.div 
+                    className="absolute bottom-16 left-0 right-0 text-center px-6 z-10"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                  >
+                    <p className="text-gray-700 mb-2 text-lg font-medium">
+                      {getText('qr_instruction', 'Pour télécharger ou imprimer votre photo:')}
                     </p>
-                    
-                    {/* Minuteur invisible mais fonctionnel */}
-                    <div className="hidden">
-                      <p>
-                        Retour à l'accueil dans: {Math.floor(qrCodeTimeRemaining / 60)}:{(qrCodeTimeRemaining % 60).toString().padStart(2, '0')}
-                      </p>
-                    </div>
+                    <p className="text-gray-600">
+                      {getText('qr_website', 'Rendez-vous sur snapbooth.com ou scannez le QR code')}
+                    </p>
+                  </motion.div>
+                  
+                  {/* Pied de page avec date et minuteur */}
+                  <div className="absolute bottom-4 left-0 right-0 text-center z-10">
+                    <motion.div
+                      className="text-sm text-gray-600"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.6 }}
+                    >
+                      {/* Date de l'événement */}
+                      <p>{new Date().toLocaleDateString('fr-FR', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}</p>
+                      
+                      {/* Minuteur pour le retour automatique */}
+                      <div className="mt-2">
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <motion.div 
+                            className="bg-purple-600 h-2.5 rounded-full" 
+                            initial={{ width: "100%" }}
+                            animate={{ width: "0%" }}
+                            transition={{ duration: qrCodeTimeRemaining, ease: "linear" }}
+                          />
+                        </div>
+                        <p className="text-xs mt-1">
+                          {getText('auto_return', 'Retour automatique dans')} {Math.floor(qrCodeTimeRemaining / 60)}:
+                          {(qrCodeTimeRemaining % 60).toString().padStart(2, '0')}
+                        </p>
+                      </div>
+                    </motion.div>
                   </div>
-                </motion.div>
-              )}
+                      </motion.div>
+                    )}
               </AnimatePresence>
             </>
           )}
