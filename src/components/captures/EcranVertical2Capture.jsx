@@ -16,6 +16,7 @@ import { saveProcessedPhotoToSupabase } from "../../../lib/processedPhotos";
 import axios from 'axios';
 import SelectEffect from '../../components/effects/SelectEffect';
 import { MAGICAL_EFFECTS, NORMAL_EFFECTS, EFFECTOPTION, composeEffects } from '../../lib/composeEffects';
+import { useSearchParams } from 'react-router-dom';
 
 
 
@@ -401,13 +402,19 @@ const NormalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => {
   );
 };
 
-export default function EcranVerticale2Captures({ eventId }) {
+export default function EcranVerticale2Captures({ eventId}) {
   const location = useLocation();
   const navigate = useNavigate();
   const params = useParams();
+  const [searchParams] = useSearchParams();
   const webcamRef = useRef(null);
+  const [startScreenUrl, setStartScreenUrl] = useState(null);
+  const [isStartScreenLoading, setIsStartScreenLoading] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
+  const [mediaAspectRatio, setMediaAspectRatio] = useState(null);
   const [orientation, setOrientation] = useState('vertical'); // Valeur par défaut: vertical
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = getScreenDimensions(orientation);
+  const [frameUrl, setFrameUrl] = useState(null);
   const [imgSrc, setImgSrc] = useState(null);
   const [decompte, setDecompte] = useState(null);
   const [etape, setEtape] = useState('accueil'); // accueil, decompte, validation, magicalEffect, normalEffect, traitement, resultat, qrcode
@@ -418,9 +425,12 @@ export default function EcranVerticale2Captures({ eventId }) {
   const [webcamEstPret, setWebcamEstPret] = useState(false); 
   const [isLoading, setIsLoading] = useState(false);
   const [standId, setStandId] = useState(getCurrentStandId());
+  // Récupérer l'event ID depuis les paramètres d'URL
+  const eventIDFromURL = searchParams.get('event');
+  
   const eventIDFromLocation = location.state?.eventID;
   const eventIDFromParams = params.eventId;
-  const [eventID, setEventID] = useState(eventId || eventIDFromParams || eventIDFromLocation);
+  const [eventID, setEventID] = useState(eventId || eventIDFromURL || eventIDFromParams || eventIDFromLocation);
   const [webcamError, setWebcamError] = useState(null);
   const [selectedMagicalEffect, setSelectedMagicalEffect] = useState(null);
   const [selectedNormalEffect, setSelectedNormalEffect] = useState(null);
@@ -431,6 +441,8 @@ export default function EcranVerticale2Captures({ eventId }) {
   // Utiliser la configuration centralisée de l'écran  
   const [flashEnabled, setFlashEnabled] = useState(false); // Valeur par défaut: flash désactivé
   const [mirrorPreview, setMirrorPreview] = useState(false); // Valeur par défaut: prévisualisation miroir désactivée
+
+  
  
   /* NOUVEAUX états pour templates */
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -441,6 +453,7 @@ export default function EcranVerticale2Captures({ eventId }) {
   
   const [selectedMagicalOption, setSelectedMagicalOption] = useState(null);
   const [showEffectOptions, setShowEffectOptions] = useState(false);
+  
 
   const { config, screenId: contextScreenId, saveScreenConfig, updateConfig } = useScreenConfig();
   // Utiliser notre hook pour accéder aux textes personnalisés
@@ -456,15 +469,37 @@ export default function EcranVerticale2Captures({ eventId }) {
       // Utiliser l'opérateur logique OU (||) pour fournir une valeur par défaut
       // si countdown_duration est null ou undefined dans la base de données
       setDureeDecompte(config.countdown_duration || 3); 
-      console.log("Configuration de l'écran chargée :", config);
-    }
+      setFrameUrl(config.frame_url);
+      console.log("Configuration de l'écran chargée :", config);    }
   }, [config]);
 
 
   // Récupérer un événement par défaut si aucun n'est spécifié
   useEffect(() => {
     const fetchDefaultEvent = async () => {
-      if (!eventID) {
+      // Priorité au paramètre d'URL s'il existe
+    if (eventIDFromURL) {
+      console.log("Événement depuis l'URL:", eventIDFromURL);
+      setEventID(eventIDFromURL);
+      
+      // Charger aussi le start_screen de cet événement
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select('start_screen')
+          .eq('id', eventIDFromURL)
+          .single();
+
+        if (!error && data && data.start_screen) {
+          setStartScreenUrl(data.start_screen);
+        }
+      } catch (err) {
+        console.error("Erreur lors du chargement de l'écran d'accueil:", err);
+      }
+      return;
+    }
+
+      if (!eventIDFromURL) {
         try {
           console.log("Aucun événement spécifié, recherche d'un événement par défaut...");
           const { data, error } = await supabase
@@ -494,7 +529,10 @@ export default function EcranVerticale2Captures({ eventId }) {
     };
 
     fetchDefaultEvent();
-  }, [eventID]);
+  }, [eventIDFromURL]);
+
+ 
+
 
    /* NOUVEAU useEffect pour templates */
   useEffect(() => {
@@ -564,6 +602,15 @@ export default function EcranVerticale2Captures({ eventId }) {
       console.error("Erreur lors de la vérification des commandes:", err);
     }
   };
+
+  //pour détecter le type de média pour l'écran de démarrage 
+  const getMediaType = (url) => {
+  if (!url) return null;
+  const extension = url.split('.').pop().toLowerCase();
+  if (['mp4', 'webm', 'ogg'].includes(extension)) return 'video';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) return 'image';
+  return null;
+};
 
   //Fonction pour détecter les dimensions de l'image traitée
   const handleImageLoad = (e) => {
@@ -759,10 +806,22 @@ const selectionnerOptionEffet = (optionValue) => {
 
   // Fonction pour démarrer le photobooth
   const demarrerPhotobooth = () => {
-    if (etape !== 'accueil') return;
+  if (etape !== 'accueil') return;
+  
+  // Si des templates sont disponibles, passer à l'écran de sélection
+  if (templates.length > 0) {
+    setEtape('templateSelection');
+  } else {
+    // Sinon, passer directement au décompte
     setEtape('decompte');
     lancerDecompte();
-  };
+  }
+};
+const confirmerTemplate = () => {
+  setEtape('decompte');
+  lancerDecompte();
+};
+
 
   // Fonction pour lancer le décompte et prendre une photo
   const lancerDecompte = () => {
@@ -811,298 +870,241 @@ const selectionnerOptionEffet = (optionValue) => {
   };
 
   // Fonction pour sauvegarder la photo
-  const savePhoto = async () => {
-    if (!imgSrc) return;
-    
-    setEnTraitement(true);
-    // Déclarer les variables avec des valeurs par défaut
+  // Fonction pour sauvegarder la photo
+const savePhoto = async () => {
+  if (!imgSrc) return;
   
+  setEnTraitement(true);
+  
+  try {
+    // Convertir l'image base64 en blob
+    const res = await fetch(imgSrc);
+    const blob = await res.blob();
+    
+    // Générer un nom de fichier unique
+    const fileName = `${Date.now()}_${standId || 'unknown'}_${config.type}.jpg`;
+    
+    // Utiliser les constantes de stockage définies pour cet écran
+    const bucketName = contextScreenId;
+    const originalFilePath = `${CAPTURES_FOLDER}/${fileName}`;
+    const processedFilePath = `${PROCESSED_FOLDER}/${fileName}`;
+
+    // Variables de fallback
+    let finalBucketName = bucketName;
+    let finalOriginalFilePath = originalFilePath;
+    
+    // Télécharger l'image originale vers Supabase Storage
+    try {
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .upload(originalFilePath, blob, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+        });
+      
+      if (error) throw error;
+      
+    } catch (uploadError) {
+      console.error("Erreur lors de l'upload original:", uploadError);
+      // Essayer avec le bucket de secours 'assets'
+      const fallbackPath = `${config.type}/captures/${fileName}`;
+      
+      const { error: fallbackError } = await supabase.storage
+        .from('assets')
+        .upload(fallbackPath, blob, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+        });
+        
+      if (fallbackError) throw fallbackError;
+      
+      finalBucketName = 'assets';
+      finalOriginalFilePath = fallbackPath;
+    }
+    
+    // Récupérer l'URL publique de l'image originale
+    const { data: urlData } = await supabase.storage
+      .from(finalBucketName)
+      .getPublicUrl(finalOriginalFilePath);
+    
+    const originalPublicUrl = urlData.publicUrl;
+
+    // Enregistrer les métadonnées de la photo ORIGINALE dans la base de données
+    const { data: originalPhotoData, error: originalPhotoError } = await supabase
+      .from('photos')
+      .insert([
+        {
+          url: originalPublicUrl,
+          event_id: eventID,
+          stand_id: standId,
+          screen_type: config.type,
+          is_processed: false, // Indique que c'est l'originale
+          magical_effect: null, // Pas encore d'effet appliqué
+          normal_effect: null,  // Pas encore d'effet appliqué
+          filter_name: 'original'
+        }
+      ])
+      .select();
+    
+    if (originalPhotoError) {
+      throw originalPhotoError;
+    }
+    
+    const originalPhotoId = originalPhotoData[0].id;
+
+    // Appliquer les effets sélectionnés (magique et/ou normal) à l'image
+    let processedImageUrl = originalPublicUrl;
+    let processedBlob = blob;
     
     try {
-      // Convertir l'image base64 en blob
-      const res = await fetch(imgSrc);
-      const blob = await res.blob();
+      // Convertir le blob en canvas pour pouvoir appliquer les effets
+      const blobUrl = URL.createObjectURL(blob);
+      const img = new Image();
       
-      // Générer un nom de fichier unique
-      const fileName = `${Date.now()}_${standId || 'unknown'}_${config.type}.jpg`;
+      // Attendre que l'image soit chargée
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = blobUrl;
+      });
       
-      // Utiliser les constantes de stockage définies pour cet écran (Vertical 1 - Cartoon et Glow Up)
-      const bucketName = contextScreenId;
-      const filePath = `${CAPTURES_FOLDER}/${fileName}`;
-
-          // Déclarer les variables de fallback avec les valeurs par défaut
-      let updatedBucketName = bucketName;
-      let updatedFilePath = filePath;
-
+      // Créer un canvas à partir de l'image
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
       
-      // // Sauvegarde locale réelle sur disque
-      // savePhotoLocally(imgSrc, fileName, eventID, standId, LOCAL_CAPTURES_PATH)
-      //   .then(result => {
-      //     if (result.success) {
-      //       console.log(`Photo sauvegardée localement dans ${result.filePath || LOCAL_CAPTURES_PATH}`);
-      //     }
-      //   })
-      //   .catch(error => {
-      //     console.warn("Erreur lors de la sauvegarde locale:", error);
-      //     // Ne pas interrompre le flux si la sauvegarde locale échoue
-      //   });
-      // // Vérifier si le bucket existe
-      try {
-        console.log(`Tentative de sauvegarde dans le bucket: ${bucketName}, chemin: ${filePath}`);
-        
-        // Télécharger l'image originale vers Supabase Storage
-        const { data, error } = await supabase.storage
-          .from(bucketName)
-          .upload(filePath, blob, {
-            contentType: 'image/jpeg',
-            cacheControl: '3600',
-          });
-        
-        if (error) {
-          console.error(`Erreur détaillée lors de l'upload: ${JSON.stringify(error)}`);
-          throw error;
-        }
-        
-        console.log(`Image originale sauvegardée avec succès dans ${bucketName}/${filePath}`);
-      } catch (uploadError) {
-        console.error(`Erreur lors de l'upload: ${uploadError.message || JSON.stringify(uploadError)}`);
-        // Essayer avec le bucket par défaut 'assets' si le bucket spécifique n'existe pas
-        console.log(`Tentative de sauvegarde dans le bucket de secours: assets`);
-        const fallbackPath = `${config.type}/captures/${fileName}`;
-        
-        const { data: fallbackData, error: fallbackError } = await supabase.storage
-          .from('assets')
-          .upload(fallbackPath, blob, {
-            contentType: 'image/jpeg',
-            cacheControl: '3600',
-          });
-          
-        if (fallbackError) {
-          console.error(`Erreur détaillée lors de l'upload de secours: ${JSON.stringify(fallbackError)}`);
-          throw fallbackError;
-        }
-        
-        console.log(`Image originale sauvegardée avec succès dans le bucket de secours: assets/${fallbackPath}`);
-        // Utiliser de nouvelles variables au lieu de réassigner les constantes
-        const originalBucketName = bucketName;
-        let updatedBucketName = 'assets';
-        let updatedFilePath = fallbackPath;
-        console.log(`Bucket changé de ${originalBucketName} à ${updatedBucketName}`);
-      }
+      // Appliquer les effets magiques et normaux
+      console.log(`Application des effets: magique=${selectedMagicalEffect}, normal=${selectedNormalEffect}`);
+      const processedCanvas = await composeEffects(canvas, selectedMagicalEffect, selectedNormalEffect, selectedMagicalOption);
       
-      // Récupérer l'URL publique de l'image
-      const { data: urlData } = await supabase.storage
-        .from(updatedBucketName || bucketName)
-        .getPublicUrl(updatedFilePath || filePath);
+      // Convertir le canvas traité en blob
+      processedBlob = await new Promise(resolve => {
+        processedCanvas.toBlob(resolve, 'image/jpeg', 0.9);
+      });
       
-      const publicUrl = urlData.publicUrl;
-
-      // Appliquer les effets sélectionnés (magique et/ou normal)
-      let newUrl = publicUrl;
-      console.log("Itito les ny url an le sary alohan'ny traitement ah ", newUrl);
+      // Créer une URL pour l'image traitée
+      processedImageUrl = URL.createObjectURL(processedBlob);
+      console.log("URL finale de l'image traitée:", processedImageUrl);
       
-      // Importer la fonction composeEffects pour appliquer les effets
-      try {
-        // Convertir le blob en canvas pour pouvoir appliquer les effets
-        const blobUrl = URL.createObjectURL(blob);
-        const img = new Image();
-        
-        // Attendre que l'image soit chargée
-        await new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = reject;
-          img.src = blobUrl;
-        });
-        
-        // Créer un canvas à partir de l'image
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        
-        // Appliquer les effets magiques et normaux en utilisant composeEffects
-        console.log(`Application des effets: magique=${selectedMagicalEffect}, normal=${selectedNormalEffect}`);
-        const processedCanvas = await composeEffects(canvas, selectedMagicalEffect, selectedNormalEffect,selectedMagicalOption);
-        
-        // Convertir le canvas traité en URL pour l'affichage et le stockage
-        processedCanvas.toBlob(async (processedBlob) => {
-          newUrl = URL.createObjectURL(processedBlob);
-          console.log("URL finale de l'image traitée:", newUrl);
-          
-          // Enregistrer l'image traitée dans Supabase
-          const processedPath = `${PROCESSED_FOLDER}/${fileName}.jpg`;
-          const { data: uploadProcessedData, error: uploadProcessedError } = await supabase.storage
-            .from(bucketName)
-            .upload(processedPath, processedBlob, {
-              contentType: 'image/jpeg',
-              upsert: true
-            });
-          
-          if (uploadProcessedError) {
-            console.error("Erreur lors de l'upload de l'image traitée:", uploadProcessedError);
-          } else {
-            console.log("Image traitée uploadée avec succès:", uploadProcessedData);
-          }
-          
-          // Libérer les ressources
-          URL.revokeObjectURL(blobUrl);
-        }, 'image/jpeg', 0.9);
-        
-      } catch (effectError) {
-        console.error("Erreur lors de l'application des effets:", effectError);
-        // En cas d'erreur, utiliser l'image originale
-        newUrl = publicUrl;
-      } 
-
+      // Libérer les ressources
+      URL.revokeObjectURL(blobUrl);
       
-      
-      
-      // Enregistrer les métadonnées de la photo dans la base de données
-      const { data: photoData, error: photoError } = await supabase
-        .from('photos')
-        .insert([
-          {
-            url: publicUrl,
-            event_id: eventID,
-            stand_id: standId,
-            screen_type: config.type,
-            magical_effect: selectedMagicalEffect || null,
-            normal_effect: selectedNormalEffect || null,
-            filter_name: selectedMagicalEffect || 'normal', // Pour compatibilité avec l'ancien code
-          }
-        ])
-        .select();
-      
-      if (photoError) {
-        throw photoError;
-      }
-      // Sauvegarde automatique locale (non bloquante)
-      try {
-        await autoSavePhoto(imgSrc, fileName, LOCAL_CAPTURES_PATH);
-        console.log(`Photo sauvegardée automatiquement dans ${LOCAL_CAPTURES_PATH}`);
-      } catch (localSaveError) {
-        console.warn("Erreur lors de la sauvegarde automatique locale:", localSaveError);
-        // Ne pas interrompre le flux si la sauvegarde locale échoue
-      }
-      
-      // Appliquer l'effet à l'image (pour l'instant, on utilise la même image)
-      // Dans une implémentation réelle, vous appelleriez une API pour appliquer des filtres
-      await updateCaptureStationStatus(standId, 'ready');
-      const resp = await fetch(newUrl);
-      const processedImage = await resp.blob();
-      // Simuler un traitement d'image (à remplacer par un vrai traitement si nécessaire)
-      setTimeout(() => {
-        // Appliquer l'effet à l'image (pour l'instant, on utilise la même image)
-        // Dans une implémentation réelle, vous appelleriez une API pour appliquer des filtres
-      
-        setImageTraitee(newUrl);
-        
-      // Sauvegarder la photo traitée
-      try {
-        const processedFileName = `processed_${Date.now()}_${standId || 'unknown'}_${config.type}.jpg`;
-        // Utiliser les constantes de stockage définies pour cet écran (Vertical 1 - Cartoon et Glow Up)
-        const processedFilePath = `${PROCESSED_FOLDER}/${processedFileName}`;
-        
-        // Sauvegarde locale de l'image traitée avec la fonction existante
-        // Sauvegarde automatique locale de la photo traitée (non bloquante)
-        savePhotoLocally(newUrl, processedFileName, eventID, standId, LOCAL_PROCESSED_PATH, 'processed')
-          .then(result => {
-            if (result.success) {
-              console.log(`Photo traitée sauvegardée localement dans ${result.filePath || LOCAL_PROCESSED_PATH}`);
-            }
-          })
-          .catch(localProcessedSaveError => {
-            console.warn("Erreur lors de la sauvegarde locale de l'image traitée:", localProcessedSaveError);
-            // Ne pas interrompre le flux si la sauvegarde locale échoue
-          });
-        
-        // Télécharger depuis l'URL de l'image traitée et sauvegarder dans Supabase
-        fetch(newUrl)
-          .then(processedRes => processedRes.blob())
-          .then(processedBlob => {
-            // Sauvegarder dans Supabase
-            supabase.storage
-              .from(bucketName)
-              .upload(processedFilePath, processedBlob, {
-                contentType: 'image/jpeg',
-                cacheControl: '3600',
-              })
-              .then(({ data: processedData, error: processedError }) => {
-                if (processedError) {
-                  console.warn("Erreur lors du téléchargement de l'image traitée:", processedError);
-                  return;
-                }
-                
-                // Récupérer l'URL publique de l'image traitée
-                supabase.storage
-                  .from(bucketName)
-                  .getPublicUrl(processedFilePath)
-                  .then(({ data: processedUrlData }) => {
-                    const processedPublicUrl = processedUrlData.publicUrl;
-                    
-                    // Mettre à jour l'enregistrement de la photo avec l'URL de l'image traitée
-                    if (photoData && photoData.length > 0) {
-                      supabase
-                        .from('photos')
-                        .update({ processed_url: processedPublicUrl })
-                        .eq('id', photoData[0].id)
-                        .then(({ error: updateError }) => {
-                          if (updateError) {
-                            console.warn("Erreur lors de la mise à jour de l'URL traitée:", updateError);
-                          }
-                        });
-                    }
-                  });
-              });
-          })
-          .catch(err => {
-            console.warn("Erreur lors du téléchargement de l'image traitée:", err);
-          });
-        
-      } catch (processedSaveError) {
-        console.warn("Erreur lors de la sauvegarde de la photo retouchée:", processedSaveError);
-        // Ne pas interrompre le flux si la sauvegarde échoue
-      }
-      
-      // Passer à l'étape de résultat
-      setEnTraitement(false);
-      setEtape('resultat');
-      setImageTraitee(newUrl);
-      
-      // Afficher le résultat pendant 10 secondes
-      setDecompteResultat(10);
-      const resultInterval = setInterval(() => {
-        setDecompteResultat(prev => {
-          if (prev <= 1) {
-            clearInterval(resultInterval);
-            setEtape('qrcode');
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }, 3000);
-      
-    } catch (error) {
-      console.error("Erreur lors de la sauvegarde de la photo:", error);
-      console.error("Détails de l'erreur:", JSON.stringify(error, null, 2));
-      
-      // Message d'erreur plus informatif
-      let errorMessage = "Erreur lors de la sauvegarde de la photo.";
-      if (error.message) {
-        errorMessage += ` ${error.message}`;
-      } else if (error.error_description) {
-        errorMessage += ` ${error.error_description}`;
-      } else if (typeof error === 'string') {
-        errorMessage += ` ${error}`;
-      }
-      
-      notify.error(errorMessage);
-      setEnTraitement(false);
-      setEtape('validation');
+    } catch (effectError) {
+      console.error("Erreur lors de l'application des effets:", effectError);
+      // En cas d'erreur, utiliser l'image originale
+      processedImageUrl = originalPublicUrl;
     }
-  };
+
+    // Enregistrer l'image traitée dans Supabase Storage
+    try {
+      const { data: processedData, error: processedError } = await supabase.storage
+        .from(finalBucketName)
+        .upload(processedFilePath, processedBlob, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+          upsert: true
+        });
+      
+      if (processedError) {
+        console.error("Erreur lors de l'upload de l'image traitée:", processedError);
+        throw processedError;
+      }
+      
+      console.log("Image traitée sauvegardée avec succès:", processedData);
+      
+    } catch (processedUploadError) {
+      console.error("Erreur lors de l'upload de l'image traitée:", processedUploadError);
+      // Essayer avec le bucket de secours 'assets'
+      const fallbackProcessedPath = `${config.type}/processed/${fileName}`;
+      
+      const { error: fallbackError } = await supabase.storage
+        .from('assets')
+        .upload(fallbackProcessedPath, processedBlob, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+          upsert: true
+        });
+        
+      if (fallbackError) {
+        console.error("Erreur même avec le bucket de secours:", fallbackError);
+        // Continuer même si l'upload échoue
+      }
+    }
+    
+    // Récupérer l'URL publique de l'image traitée
+    const { data: processedUrlData } = await supabase.storage
+      .from(finalBucketName)
+      .getPublicUrl(processedFilePath);
+    
+    const processedPublicUrl = processedUrlData.publicUrl;
+
+    // Enregistrer les métadonnées de la photo TRAITÉE dans la base de données
+    const { data: processedPhotoData, error: processedPhotoError } = await supabase
+      .from('photos')
+      .insert([
+        {
+          url: processedPublicUrl,
+          event_id: eventID,
+          stand_id: standId,
+          screen_type: config.type,
+          is_processed: true, // Indique que c'est une image traitée
+          original_photo_id: originalPhotoId, // Référence à l'image originale
+          magical_effect: selectedMagicalEffect || null,
+          normal_effect: selectedNormalEffect || null,
+          filter_name: selectedMagicalEffect || selectedNormalEffect || 'processed',
+         
+        }
+      ])
+      .select();
+    
+    if (processedPhotoError) {
+      throw processedPhotoError;
+    }
+    
+    // Sauvegarde automatique locale (non bloquante)
+    try {
+      await autoSavePhoto(imgSrc, fileName, LOCAL_CAPTURES_PATH);
+      console.log(`Photo sauvegardée automatiquement dans ${LOCAL_CAPTURES_PATH}`);
+    } catch (localSaveError) {
+      console.warn("Erreur lors de la sauvegarde automatique locale:", localSaveError);
+    }
+    
+    // Mettre à jour le statut de la station de capture
+    await updateCaptureStationStatus(standId, 'ready');
+    
+    // Afficher l'image traitée
+    setImageTraitee(processedImageUrl);
+    setEnTraitement(false);
+    setEtape('resultat');
+    
+    // Afficher le résultat pendant 10 secondes
+    setDecompteResultat(10);
+    const resultInterval = setInterval(() => {
+      setDecompteResultat(prev => {
+        if (prev <= 1) {
+          clearInterval(resultInterval);
+          afficherQRCode();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+      
+  } catch (error) {
+    console.error("Erreur lors de la sauvegarde de la photo:", error);
+    
+    let errorMessage = "Erreur lors de la sauvegarde de la photo.";
+    if (error.message) {
+      errorMessage += ` ${error.message}`;
+    }
+    
+    notify.error(errorMessage);
+    setEnTraitement(false);
+    setEtape('validation');
+  }
+};
 
   // Fonction pour recommencer
   const recommencer = () => {
@@ -1238,110 +1240,245 @@ const selectionnerOptionEffet = (optionValue) => {
             <>
               <AnimatePresence mode="wait">
                 {/* Écran d'accueil */}
-                {etape === 'accueil' && (
-                <motion.div 
-                  className="min-h-screen flex flex-col items-center justify-center" 
-                  onClick={demarrerPhotobooth}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  {/* Cadre principal */}
-                  <div className="relative w-full max-w-md mx-auto h-[90vh] overflow-hidden">
-                    {/* Cadre configuré depuis l'admin */}
-                    {config?.frame_url ? (
-                      <div className="absolute inset-0 z-20 pointer-events-none">
-                        <img 
-                          src={config.frame_url} 
-                          alt="Cadre" 
-                          className="w-full h-full object-cover" 
-                        />
-                      </div>
-                    ) : (
-                      /* Cadre par défaut style miroir de loge avec bordure noire et lumières LED */
-                      <>
-                        <div className="absolute inset-0 rounded-3xl border-[20px] border-black bg-transparent z-20 pointer-events-none"></div>
-                        {/* Lumières LED sur les côtés */}
-                        <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-around z-30 px-1">
-                          {[...Array(8)].map((_, i) => (
-                            <div key={`left-${i}`} className="w-4 h-4 rounded-full bg-white shadow-glow animate-pulse"></div>
-                          ))}
-                        </div>
-                        <div className="absolute right-0 top-0 bottom-0 flex flex-col justify-around z-30 px-1">
-                          {[...Array(8)].map((_, i) => (
-                            <div key={`right-${i}`} className="w-4 h-4 rounded-full bg-white shadow-glow animate-pulse"></div>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                    
-                    {/* Webcam en arrière-plan */}
-                    <div className="absolute inset-0">
-                      <Webcam
-                        audio={false}
-                        ref={webcamRef}
-                        screenshotFormat="image/jpeg"
-                        videoConstraints={{
-                          width: SCREEN_WIDTH,
-                          height: SCREEN_HEIGHT,
-                          facingMode: "user",
-                          aspectRatio: SCREEN_WIDTH / SCREEN_HEIGHT
-                        }}
-                        className="w-full h-full object-cover"
-                        onUserMediaError={(err) => {
-                          console.error("Erreur webcam:", err);
-                          setWebcamError(`Erreur d'accès à la caméra: ${err.name}`);
-                        }}
-                      />
-                     <Webcam
-                        audio={false}
-                        ref={webcamRef}
-                        screenshotFormat="image/jpeg"
-                        width={SCREEN_WIDTH}
-                        height={SCREEN_HEIGHT}
-                        videoConstraints={{
-                          width: SCREEN_WIDTH,
-                          height: SCREEN_HEIGHT,
-                          facingMode: "user",
-                          aspectRatio: SCREEN_WIDTH / SCREEN_HEIGHT
-                        }}
-                        mirrored={mirrorPreview} // <--- C'est la ligne importante à ajouter/modifier
-                        onUserMedia={() => setWebcamEstPret(true)}
-                        onUserMediaError={(error) => {
-                          console.error("Webcam error:", error);
-                          setWebcamError("Impossible d'accéder à la webcam. Veuillez vérifier les permissions.");
-                          setIsLoading(false);
-                        }}
-                      />
-                     
+{etape === 'accueil' && (
+  <AnimatePresence>
+    <motion.div 
+      className="min-h-screen flex items-center justify-center relative bg-gradient-to-b from-indigo-900 to-purple-900"
+      onClick={demarrerPhotobooth}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      {startScreenUrl ? (
+        <div className="absolute inset-0 z-0 flex items-center justify-center bg-gradient-to-b from-indigo-900 to-purple-900">
+          {isStartScreenLoading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <LoadingSpinner />
+            </div>
+          )}
+          
+          {/* Conteneur qui préserve le ratio */}
+          <div className="relative w-full h-full flex items-center justify-center">
+          {getMediaType(startScreenUrl) === 'video' ? (
+            <video
+              autoPlay
+              loop
+              muted={isMuted}
+              playsInline
+              className="max-w-full max-h-full object-contain"
+              style={{
+                  aspectRatio: mediaAspectRatio || 'auto',
+                  width: mediaAspectRatio ? 'auto' : '100%',
+                  height: mediaAspectRatio ? '100%' : 'auto'
+                }}
+              onCanPlay={(e) => {setIsStartScreenLoading(false);
+                                 setMediaAspectRatio(e.target.videoWidth / e.target.videoHeight);
+              }}
+              onError={() => {
+                setIsStartScreenLoading(false);
+                setStartScreenUrl(null);
+                notify.warning("Le média n'a pas pu être chargé");
+              }}
+            >
+              <source src={startScreenUrl} type={`video/${startScreenUrl.split('.').pop().toLowerCase()}`} />
+            </video>
+          ) : (
+            <img 
+              src={startScreenUrl} 
+              alt="Écran d'accueil" 
+              className="max-w-full max-h-full object-contain"
+              style={{
+                  aspectRatio: mediaAspectRatio || 'auto',
+                  width: mediaAspectRatio ? 'auto' : '100%',
+                  height: mediaAspectRatio ? '100%' : 'auto'
+                }}
+              onLoad={(e) => {setIsStartScreenLoading(false);
+                              setMediaAspectRatio(e.target.naturalWidth / e.target.naturalHeight);
+              }}
+              onError={() => {
+                setIsStartScreenLoading(false);
+                setStartScreenUrl(null);
+                notify.warning("L'image n'a pas pu être chargée");
+              }}
+            />
+          )}
+          </div>
 
+          {getMediaType(startScreenUrl) === 'video' && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMuted(!isMuted);
+              }}
+              className="absolute bottom-4 right-4 z-50 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-all"
+              aria-label={isMuted ? "Activer le son" : "Désactiver le son"}
+            >
+              {/* Icônes mute/unmute */}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="relative w-full max-w-md mx-auto h-[90vh] overflow-hidden">
+          {/* Contenu mode normal */}
+          <div className="relative w-full max-w-md mx-auto h-[90vh] overflow-hidden">
+        {/* Webcam */}
+        <div className="absolute inset-0">
+          <Webcam
+            audio={false}
+            ref={webcamRef}
+            screenshotFormat="image/jpeg"
+            videoConstraints={{
+              width: SCREEN_WIDTH,
+              height: SCREEN_HEIGHT,
+              facingMode: "user",
+              aspectRatio: SCREEN_WIDTH / SCREEN_HEIGHT
+            }}
+            className="w-full h-full object-cover"
+            mirrored={mirrorPreview}
+            onUserMedia={() => setWebcamEstPret(true)}
+            onUserMediaError={(err) => {
+              console.error("Erreur webcam:", err);
+              setWebcamError(`Erreur d'accès à la caméra: ${err.name}`);
+            }}
+          />
+          <div className="absolute inset-0 bg-black/30"></div>
+        </div>
+
+        {/* Cadre Configuré */}
+        {frameUrl ? (
+          <div className="absolute inset-0 z-20 pointer-events-none">
+            <img 
+              src={frameUrl}
+              alt="Cadre" 
+              className="w-full h-full object-cover" 
+            />
+          </div>
+        ) : (
+          /* Cadre par Défaut */
+          <>
+            <div className="absolute inset-0 rounded-3xl border-[20px] border-black bg-transparent z-20 pointer-events-none"></div>
+            {/* Lumières LED */}
+            <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-around z-30 px-1">
+              {[...Array(8)].map((_, i) => (
+                <div key={`left-${i}`} className="w-4 h-4 rounded-full bg-white shadow-glow animate-pulse"></div>
+              ))}
+            </div>
+            <div className="absolute right-0 top-0 bottom-0 flex flex-col justify-around z-30 px-1">
+              {[...Array(8)].map((_, i) => (
+                <div key={`right-${i}`} className="w-4 h-4 rounded-full bg-white shadow-glow animate-pulse"></div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Texte d'Accueil */}
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <div className="text-center px-6 py-4 rounded-xl bg-black/30 backdrop-blur-sm">
+            <h1 className="text-3xl font-bold text-white drop-shadow-lg">
+              {getText('welcome_text', 'Touchez l\'écran pour lancer le Photobooth')}
+            </h1>
+            <p className="text-gray-200 mt-2 drop-shadow-md">
+              {getText('welcome_subtext', 'Prêt à capturer des moments mémorables')}
+            </p>
+          </div>
+        </div>
+
+        {/* Logo SnapBooth */}
+        <div className="absolute top-2 left-2 z-40 opacity-70 hover:opacity-100 transition-opacity">
+          <img src="/assets/snap_booth.png" alt="SnapBooth" className="h-10" />
+        </div>
+      </div>
+        </div>
+      )}
+    </motion.div>
+  </AnimatePresence>
+)}
+
+              {/* Nouvel écran de sélection de template */}
+                {etape === 'templateSelection' && (
+                  <motion.div 
+                    className="min-h-screen flex flex-col items-center justify-center bg-black/90"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <div className="max-w-4xl w-full bg-purple-800/90 rounded-xl p-6">
+                      <h2 className="text-3xl font-bold text-white text-center mb-6">
+                        {getText('select_template', 'Sélectionnez un template')}
+                      </h2>
                       
-                      {/* Overlay pour assombrir légèrement la webcam */}
-                      <div className="absolute inset-0 bg-black/30"></div>
-                    </div>
-                    
-                    {/* Texte d'accueil superposé sur la webcam */}
-                    <div className="absolute inset-0 flex items-center justify-center z-10">
-                      <div className="text-center px-6 py-4 bg-black/30 backdrop-blur-sm rounded-xl">
-                        <h1 className="text-3xl font-bold text-white">{getText('welcome_text', 'Touchez l\'écran pour lancer le Photobooth')}</h1>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto">
+                        {/* Option "Aucun template" */}
+                        <motion.div
+                          className="bg-white/10 rounded-xl overflow-hidden cursor-pointer"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => {
+                            setSelectedTemplate(null);
+                            confirmerTemplate();
+                          }}
+                        >
+                          <div className="w-full h-48 bg-gray-800 flex items-center justify-center">
+                            <span className="text-white text-xl">Aucun template</span>
+                          </div>
+                          <div className="p-3 text-center">
+                            <p className="text-white font-medium">Pas de template</p>
+                          </div>
+                        </motion.div>
+                        
+                        {/* Liste des templates */}
+                        {templates.map((template) => (
+                          <motion.div 
+                            key={template.id}
+                            className="bg-white/10 rounded-xl overflow-hidden cursor-pointer"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                              setSelectedTemplate(template);
+                              confirmerTemplate();
+                            }}
+                          >
+                            <img 
+                              src={template.url} 
+                              alt={template.name} 
+                              className="w-full h-48 object-contain bg-white" 
+                            />
+                            <div className="p-3 text-center">
+                              <p className="text-white font-medium">{template.name}</p>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                      
+                      <div className="mt-8 text-center">
+                        <button 
+                          onClick={() => setEtape('accueil')}
+                          className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-full"
+                        >
+                          {getText('button_back', 'Retour')}
+                        </button>
                       </div>
                     </div>
-                  </div>
-                </motion.div>
-              )}
+                  </motion.div>
+                )}
+
               
               {/* Écran de décompte */}
               {etape === 'decompte' && (
                 <motion.div 
-                  className="min-h-screen flex items-center justify-center"
+                  className="min-h-screen flex items-center justify-center relative bg-gradient-to-b from-indigo-900 to-purple-900"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  {/* Webcam */}
-                  <Webcam
+                      {/* Conteneur principal */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                {/* Webcam - doit être positionnée derrière */}
+                <div className="absolute inset-0 z-0">
+                 <Webcam
                     audio={false}
                     ref={webcamRef}
                     screenshotFormat="image/jpeg"
@@ -1350,13 +1487,28 @@ const selectionnerOptionEffet = (optionValue) => {
                       height: SCREEN_HEIGHT,
                       facingMode: "user"
                     }}
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                     onUserMediaError={(err) => {
                       console.error("Erreur webcam:", err);
                       setWebcamError(`Erreur d'accès à la caméra: ${err.name}`);
                     }}
                   />
-                  
+                  </div>
+      
+                   {/* Template avec fond transparent - positionné au-dessus */}
+                    {selectedTemplate && (
+                     <div className="relative z-10 w-full h-full flex items-center justify-center">
+                        <img 
+                            src={selectedTemplate.url} 
+                            alt="Template sélectionné" 
+                           
+                            className="max-w-full max-h-full object-contain"
+                          />
+                        </div>   
+                    
+                    )}
+                    </div>
+              
                   {/* Décompte */}
                   <div className="relative z-10 flex items-center justify-center">
                     <div className="text-9xl font-bold text-white animate-pulse shadow-lg">
@@ -1383,7 +1535,7 @@ const selectionnerOptionEffet = (optionValue) => {
                       setEtape('accueil');
                       
                     }} 
-                    frameUrl={config?.appearance_params?.frame_url}
+                    frameUrl={selectedTemplate ? selectedTemplate.url : config?.appearance_params?.frame_url}
                     reviewText={getText('review_text', 'Voulez-vous garder cette photo ?')}
                   />
                 </motion.div>
@@ -1427,24 +1579,42 @@ const selectionnerOptionEffet = (optionValue) => {
                 <TraitementEnCours message={getText('processing_text', 'Un peu de patience!')} />
               )}
               
-              {/* Écran de résultat */}
-             {etape === 'resultat' && imageTraitee && (
-                <motion.div className="min-h-screen flex flex-col relative">
-                  <ImageComparisonSlider 
-                    beforeImage={imgSrc} 
-                    afterImage={imageTraitee} 
-                  />
-                  
-                  {/* Overlay avec texte */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-purple-600/80 p-6 text-center">
-                    <h2 className="text-2xl font-bold text-white">Comparez avant/après</h2>
-                    <p className="text-gray-200 mt-2">Glissez la ligne pour voir les différences</p>
-                    {decompteResultat !== null && decompteResultat > 0 && (
-                      <p className="text-gray-200">Suite dans {decompteResultat}s...</p>
-                    )}
-                  </div>
-                </motion.div>
-              )}
+            {/* Écran de résultat */}
+                  {etape === 'resultat' && imageTraitee && (
+                    <motion.div className="min-h-screen flex flex-col relative">
+                      {/* Conteneur principal */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-white">
+                        {/* Image traitée */}
+                        <div className="relative" style={{ width: '80%', aspectRatio: `${imageDimensions.width}/${imageDimensions.height}` }}>
+                          <img 
+                            src={imageTraitee} 
+                            alt="Photo traitée" 
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        
+                        {/* Template par-dessus */}
+                        {selectedTemplate && (
+                          <div className="absolute inset-0 pointer-events-none">
+                            <img 
+                              src={selectedTemplate.url} 
+                              alt="Template" 
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Overlay avec texte */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-6 text-center">
+                        <h2 className="text-2xl font-bold text-white">Comparez avant/après</h2>
+                        <p className="text-gray-200 mt-2">Glissez la ligne pour voir les différences</p>
+                        {decompteResultat !== null && decompteResultat > 0 && (
+                          <p className="text-gray-200">Suite dans {decompteResultat}s...</p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
               
               {/* Écran QR Code */}
               {etape === 'qrcode' && (
@@ -1455,100 +1625,122 @@ const selectionnerOptionEffet = (optionValue) => {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.5 }}
                 >
-               {/* Bouton template - NOUVEAU */}
-                <div className="absolute top-8 right-4 z-50">
-                  {selectedTemplate ? (
-                    <button onClick={removeTemplate} className="bg-red-500 hover:bg-red-600 text-white text-lg font-bold py-3 px-6 rounded-full shadow-lg flex items-center">
-                      Retirer le template
-                    </button>
-                  ) : (
-                    <button onClick={() => setShowTemplateSelection(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold py-3 px-6 rounded-full shadow-lg flex items-center">
-                      Ajouter un template
-                    </button>
-                  )}
-                </div> 
-                  {/* Image traitée en arrière-plan */}
-                  <div className="w-full h-full absolute inset-0 flex items-center justify-center">
-                     <div className="relative" style={{
-                    width: selectedTemplate ? '80%' : '100%',
-                    height: selectedTemplate ? '80%' : '100%'
-                  }}>
-                    <img 
-                      src={imageTraitee} 
-                      alt="Photo traitée" 
-                      className="w-full h-full object-contain" 
-                    />
+                  {/* Image traitée en arrière-plan (avec template déjà intégré) */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-white">
+                    {/* Image traitée */}
+                    <div className="relative" style={{ width: '80%', aspectRatio: `${imageDimensions.width}/${imageDimensions.height}` }}>
+                      <img 
+                        src={imageTraitee} 
+                        alt="Photo traitée" 
+                        className="w-full h-full object-contain"
+                        onLoad={handleImageLoad}
+                      />
+                    </div>
+                    
+                    {/* Template par-dessus */}
                     {selectedTemplate && (
-                     <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        pointerEvents: 'none'
-                      }}>
+                      <div className="absolute inset-0 pointer-events-none">
                         <img 
                           src={selectedTemplate.url} 
-                          style={{
-                            width: `${(imageDimensions.width / imageDimensions.height) * 100}%`,
-                            height: 'auto',
-                            objectFit: 'contain'
-                          }}
-                          alt="Template overlay"
+                          alt="Template" 
+                          className="w-full h-full object-contain"
                         />
                       </div>
                     )}
-                    {config?.frame_url && (
-                      <img 
-                        src={config.frame_url} 
-                        alt="Cadre" 
-                        className="absolute top-0 left-0 w-full h-full pointer-events-none" 
-                      />
-                    )}
-                  </div>
                   </div>
 
                   {/* Bouton Nouvelle photo en haut */}
                   <div className="absolute top-8 left-0 right-0 flex justify-center z-10">
-                    <button 
-                      className="bg-purple-600 hover:bg-purple-700 text-white text-lg font-bold py-3 px-8 rounded-full shadow-lg"
+                    <motion.button
+                      className="bg-purple-600 hover:bg-purple-700 text-white text-lg font-bold py-3 px-8 rounded-full shadow-lg flex items-center"
                       onClick={retourAccueilPhotobooth}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      Nouvelle photo
-                    </button>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      {getText('new_photo_button', 'Nouvelle photo')}
+                    </motion.button>
                   </div>
                   
                   {/* QR Code au centre */}
                   <div className="absolute top-1/4 left-0 right-0 flex flex-col items-center z-10">
-                    <div className="bg-white p-4 rounded-xl shadow-lg mb-4">
-                      <QRCode imageUrl={imageTraitee} showQROnly={true} size={180} />
-                    </div>
-                    <p className="text-center text-purple-800 font-medium">Scanner<br/>le QR code</p>
+                    <motion.div 
+                      className="bg-white p-4 rounded-xl shadow-lg mb-4"
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      <QRCode 
+                        imageUrl={imageTraitee} 
+                        showQROnly={true} 
+                        size={180} 
+                        qrColor="#7e22ce"  // Couleur violette
+                        bgColor="#fef3c7"   // Couleur ambre clair
+                      />
+                    </motion.div>
+                    <motion.p 
+                      className="text-center text-purple-800 font-medium text-xl"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 }}
+                    >
+                      {getText('scan_qr_text', 'Scannez le QR code')}
+                    </motion.p>
                   </div>
                   
                   {/* Texte informatif en bas */}
-                  <div className="absolute bottom-16 left-0 right-0 text-center px-6 z-10">
-                    <p className="text-gray-100 mb-4">{getText('qr_text', 'Si vous souhaitez imprimer ou envoyer votre photo par e-mail, rendez-vous sur Snap Print!')}</p>
-                  </div>
-                  
-                  {/* Pied de page avec date */}
-                  <div className="absolute bottom-4 left-0 right-0 text-center z-10">
-                    <p className="text-sm text-gray-600">
-                      {getText('footer_text', 'Date de l\'evenement')}
-                    </p>
+                  <motion.div 
+                    className="absolute bottom-16 left-0 right-0 text-center px-6 z-10"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                  >
                     
-                    {/* Minuteur invisible mais fonctionnel */}
-                    <div className="hidden">
-                      <p>
-                        Retour à l'accueil dans: {Math.floor(qrCodeTimeRemaining / 60)}:{(qrCodeTimeRemaining % 60).toString().padStart(2, '0')}
-                      </p>
-                    </div>
+                    <p className="text-gray-700 mb-2 text-lg font-medium">
+                      {getText('qr_instruction', 'Pour télécharger ou imprimer votre photo:')}
+                    </p>
+                    <p className="text-gray-600">
+                      {getText('qr_website', 'Rendez-vous sur snapbooth.com ou scannez le QR code')}
+                    </p>
+                  </motion.div>
+                  
+                  {/* Pied de page avec date et minuteur */}
+                  <div className="absolute bottom-4 left-0 right-0 text-center z-10">
+                    <motion.div
+                      className="text-sm text-gray-600"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.6 }}
+                    >
+                      {/* Date de l'événement */}
+                      <p>{new Date().toLocaleDateString('fr-FR', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}</p>
+                      
+                      {/* Minuteur pour le retour automatique */}
+                      <div className="mt-2">
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <motion.div 
+                            className="bg-purple-600 h-2.5 rounded-full" 
+                            initial={{ width: "100%" }}
+                            animate={{ width: "0%" }}
+                            transition={{ duration: qrCodeTimeRemaining, ease: "linear" }}
+                          />
+                        </div>
+                        <p className="text-xs mt-1">
+                          {getText('auto_return', 'Retour automatique dans')} {Math.floor(qrCodeTimeRemaining / 60)}:
+                          {(qrCodeTimeRemaining % 60).toString().padStart(2, '0')}
+                        </p>
+                      </div>
+                    </motion.div>
                   </div>
-                </motion.div>
-              )}
+                      </motion.div>
+                    )}
               </AnimatePresence>
             </>
           )}

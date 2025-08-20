@@ -220,6 +220,7 @@ export function ScreenConfigProvider({ children, screenId: initialScreenId, even
           flash_enabled: data.flash_enabled,
           mirror_preview: data.mirror_preview,
           countdown_duration: data.countdown_duration,
+          frame_url: data.frame_url, // Ajout de frame_url directement depuis la table
           capture_params: { ...DEFAULT_CAPTURE_PARAMS, ...configData.capture_params },
           appearance_params: { ...DEFAULT_APPEARANCE_PARAMS, ...configData.appearance_params },
           advanced_params: { ...DEFAULT_ADVANCED_PARAMS, ...configData.advanced_params },

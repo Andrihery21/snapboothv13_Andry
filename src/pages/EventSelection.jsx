@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Plus, Loader2, LogOut, Image, Settings, Camera, Shield, X } from 'lucide-react';
+import { Calendar, Plus, Loader2, LogOut, Image, Settings, Camera, Shield, X, Zap, Smartphone, Monitor  } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, createRealtimeSubscription } from '../../lib/supabase';
 import { createEventFolder } from '../../lib/storage';
@@ -23,12 +23,22 @@ export default function EventSelection({ onSelectEvent }) {
     date: new Date().toISOString().split('T')[0],
     description: ''
   });
+ 
+ 
   
   // État pour le modal d'authentification admin
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [adminPasswordError, setAdminPasswordError] = useState('');
   const adminPasswordRef = useRef(null);
+
+  // État pour le popup de lancement
+  const [launchMenuOpen, setLaunchMenuOpen] = useState(null);
+  const [hoveredOption, setHoveredOption] = useState(null);
+   const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0, direction: 'bottom' });
+  const popupRef = useRef(null);
+
+
 
   const fetchEvents = useCallback(async () => {
     if (!user) return;
@@ -205,6 +215,7 @@ export default function EventSelection({ onSelectEvent }) {
     }
   };
 
+
   const handleEventSelect = (event) => {
     // Comme created_by n'existe pas, tous les utilisateurs ont accès à tous les événements
     if (true) { // Toujours vrai
@@ -223,11 +234,74 @@ export default function EventSelection({ onSelectEvent }) {
     }
   };
 
+ const handleLaunchEvent = (event, e) => {
+    e.stopPropagation(); // Empêche le clic de se propager au conteneur parent
+    logger.info('Ouverture du menu de lancement', { eventId: event.id });
+    
+     // Calculer la position du bouton
+    const buttonRect = e.currentTarget.getBoundingClientRect();
+    const popupWidth = 320; // Largeur estimée du popup
+    const popupHeight = 400; // Hauteur estimée du popup
+    
+    // Vérifier l'espace disponible
+    const spaceBelow = window.innerHeight - buttonRect.bottom;
+    const spaceAbove = buttonRect.top;
+    const spaceRight = window.innerWidth - buttonRect.right;
+    
+    // Déterminer la position optimale
+    let top, left, direction;
+    
+    // Position horizontale - s'assurer qu'il ne déborde pas à droite
+    if (spaceRight < popupWidth) {
+      left = buttonRect.right - popupWidth;
+    } else {
+      left = buttonRect.right;
+    }
+    
+    // Position verticale - prioriser le bas s'il y a de la place
+    if (spaceBelow >= popupHeight || spaceBelow >= spaceAbove) {
+      top = buttonRect.bottom;
+      direction = 'bottom';
+    } else {
+      top = buttonRect.top - popupHeight;
+      direction = 'top';
+    }
+    
+    setPopupPosition({ top, left, direction });
+    // Ouvre/ferme le menu de lancement pour cet événement
+    setLaunchMenuOpen(launchMenuOpen === event.id ? null : event.id);
+  };
+
+  const handleCaptureOptionSelect = (screenId, eventId) => {
+  logger.info('Option de capture sélectionnée', { screenId, eventId });
+  navigate(`/captures/${screenId}?event=${eventId}`);
+  setLaunchMenuOpen(null);
+};
+
   const handleLogout = async () => {
     logger.info('Déconnexion');
     await logout();
     navigate('/login');
   };
+ 
+  // Effet pour fermer le popup si on clique à l'extérieur
+// Effet pour fermer le popup si on clique à l'extérieur
+useEffect(() => {
+  const handleClickOutside = (event) => {
+    // Vérifier si le clic est en dehors du popup ET n'est pas sur le bouton de lancement
+    if (popupRef.current && 
+        !popupRef.current.contains(event.target) &&
+        !event.target.closest('button[title="Lancer l\'événement"]')) {
+      setLaunchMenuOpen(null);
+    }
+  };
+
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+  };
+}, []);
+
 
   if (isLoading) {
     return (
@@ -367,6 +441,144 @@ export default function EventSelection({ onSelectEvent }) {
                 </p>
                 {event.description && (
                   <p className="mt-2 text-sm text-gray-600 line-clamp-2">{event.description}</p>
+                )}
+              </div>
+             
+               {/* Bouton Lancer l'événement */}
+              <div className="relative">
+                <button
+                  onClick={(e) => handleLaunchEvent(event, e)}
+                  className={`absolute bottom-4 right-4 text-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-4 focus:ring-offset-2 ${
+                    launchMenuOpen === event.id 
+                      ? 'bg-purple-600 focus:ring-purple-400 rotate-45' 
+                      : 'bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 focus:ring-yellow-400'
+                  }`}
+                  title="Lancer l'événement"
+                  aria-label="Lancer l'événement"
+                >
+                  <Zap className={`w-5 h-5 transition-transform duration-300 ${launchMenuOpen === event.id ? 'rotate-45' : ''}`} />
+                </button>
+
+                {/* Popup innovant de sélection */}
+                {launchMenuOpen === event.id && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8, y: popupPosition.direction === 'bottom' ? 10 : -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                     ref={popupRef}
+                    className="fixed w-80 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-2xl shadow-2xl z-50 border border-purple-500/20"
+                    style={{
+                       top: `${popupPosition.top}px`,
+                       left: `${popupPosition.left}px`,
+                       transform: 'translateX(-100%)'
+                       }}
+
+                  >
+                    {/* Header du popup */}
+                    <div className="relative bg-gradient-to-r from-purple-600 to-blue-600 p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-white font-bold text-lg">Écrans de Capture</h3>
+                          <p className="text-purple-200 text-sm">{event.name}</p>
+                        </div>
+                       <button
+                        onClick={() => setLaunchMenuOpen(null)}
+                        className="text-white hover:text-purple-200 p-1 rounded-full hover:bg-white/10 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      </div>
+                      {/* Effet de particules */}
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)]"></div>
+                    </div>
+
+                    {/* Options de capture */}
+                    <div className="p-3 space-y-2 max-h-80 overflow-y-auto">
+                      {/* Écrans Verticaux */}
+                      <div className="space-y-1">
+                        <h4 className="text-purple-300 text-xs font-semibold uppercase tracking-wider px-2">Écrans Verticaux</h4>
+                        {[1, 2, 3].map((num) => (
+                          <motion.button
+                            key={`verticale-${num}`}
+                            onClick={() => handleCaptureOptionSelect(`verticale-${num}`, event.id)}
+                            onMouseEnter={() => setHoveredOption(`verticale-${num}`)}
+                            onMouseLeave={() => setHoveredOption(null)}
+                            whileHover={{ x: 4 }}
+                            whileTap={{ scale: 0.98 }}
+                            className={`group w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
+                              hoveredOption === `verticale-${num}`
+                                ? 'bg-gradient-to-r from-purple-600/30 to-blue-600/30 border border-purple-400/30'
+                                : 'bg-slate-800/50 hover:bg-slate-700/50'
+                            }`}
+                          >
+                            <div className={`p-2 rounded-lg mr-4 transition-all duration-200 ${
+                              hoveredOption === `verticale-${num}`
+                                ? 'bg-purple-500 text-white'
+                                : 'bg-slate-700 text-purple-300 group-hover:bg-purple-600 group-hover:text-white'
+                            }`}>
+                              <Smartphone className="w-5 h-5" />
+                            </div>
+                            <div className="flex-1 text-left">
+                              <div className="text-white font-medium">Écran Vertical {num}</div>
+                              <div className="text-slate-400 text-sm">Format portrait </div>
+                            </div>
+                            <div className={`transition-all duration-200 ${
+                              hoveredOption === `verticale-${num}` ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
+                            }`}>
+                              <div className="w-2 h-2 rounded-full bg-purple-400"></div>
+                            </div>
+                          </motion.button>
+                        ))}
+                      </div>
+
+                      {/* Divider */}
+                      <div className="my-4 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent"></div>
+
+                      {/* Écrans Horizontaux */}
+                      <div className="space-y-1">
+                        <h4 className="text-purple-300 text-xs font-semibold uppercase tracking-wider px-2">Écrans Horizontaux</h4>
+                        <motion.button
+                          onClick={() => handleCaptureOptionSelect('horizontale-1', event.id)}
+                          onMouseEnter={() => setHoveredOption('horizontale-1')}
+                          onMouseLeave={() => setHoveredOption(null)}
+                          whileHover={{ x: 4 }}
+                          whileTap={{ scale: 0.98 }}
+                          className={`group w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
+                            hoveredOption === 'horizontale-1'
+                              ? 'bg-gradient-to-r from-blue-600/30 to-teal-600/30 border border-blue-400/30'
+                              : 'bg-slate-800/50 hover:bg-slate-700/50'
+                          }`}
+                        >
+                          <div className={`p-2 rounded-lg mr-4 transition-all duration-200 ${
+                            hoveredOption === 'horizontale-1'
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-slate-700 text-blue-300 group-hover:bg-blue-600 group-hover:text-white'
+                          }`}>
+                            <Monitor className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 text-left">
+                            <div className="text-white font-medium">Écran Horizontal 1</div>
+                            <div className="text-slate-400 text-sm">Format paysage • Desktop</div>
+                          </div>
+                          <div className={`transition-all duration-200 ${
+                            hoveredOption === 'horizontale-1' ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
+                          }`}>
+                            <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                          </div>
+                        </motion.button>
+                      </div>
+                    </div>
+
+                    {/* Footer avec effet brillant */}
+                    <div className="relative bg-slate-900/80 p-3 border-t border-purple-500/20">
+                      <div className="text-center">
+                        <div className="text-slate-400 text-xs">Sélectionnez un format d'écran</div>
+                      </div>
+                      {/* Ligne brillante animée */}
+                      <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-purple-400 to-transparent animate-pulse"></div>
+                    </div>
+                  </motion.div>
                 )}
               </div>
             </motion.div>

@@ -81,7 +81,7 @@ const GeneralSettings = () => {
         .getPublicUrl(filePath);
 
       updateConfig('appearance_params.frame_url', urlData.publicUrl);
-      await updateScreenColumn('cadre', urlData.publicUrl);
+      await updateScreenColumn('frame_url', urlData.publicUrl);
 
       notify.success('Cadre téléchargé avec succès');
     } catch (error) {
@@ -112,7 +112,7 @@ const GeneralSettings = () => {
       if (error) throw error;
 
       updateConfig('appearance_params.frame_url', null);
-      await updateScreenColumn('cadre', null);
+      await updateScreenColumn('frame_url', null);
 
       setFramePreviewLoaded(false);
       notify.success('Cadre supprimé avec succès');
@@ -213,10 +213,10 @@ const GeneralSettings = () => {
             // Mettre à jour la config locale avec les URLs récupérées
             updateConfig('appearance_params', {
               ...config.appearance_params, // Garde les autres paramètres
-              frame_url: data.cadre || null, // Utilise la valeur de la colonne 'cadre'
+              frame_url: data.frame_url || null, // Utilise la valeur de la colonne 'cadre'
               logo_url: data.template || null, // Utilise la valeur de la colonne 'template'
             });
-            if (data.cadre) setFramePreviewLoaded(true);
+            if (data.frame_url) setFramePreviewLoaded(true);
             if (data.template) setLogoPreviewLoaded(true);
           }
         } catch (err) {
@@ -354,7 +354,7 @@ const GeneralSettings = () => {
 
           {/* Section Cadre */}
           <div className="mb-6">
-            <h3 className="text-md font-medium mb-2">Cadre</h3>
+            <h3 className="text-black text-md font-medium mb-2">Cadre</h3>
             <div className="flex items-center mb-2">
               <label htmlFor="frame-upload" className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer transition-colors">
                 <Upload className="mr-2 h-4 w-4" />
@@ -410,7 +410,7 @@ const GeneralSettings = () => {
 
           {/* Section Template */}
           <div className="mb-6">
-            <h3 className="text-md font-medium mb-2">Template</h3>
+            <h3 className="text-black text-md font-medium mb-2">Template</h3>
             <div className="flex items-center mb-2">
               <label htmlFor="logo-upload" className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer transition-colors">
                 <Upload className="mr-2 h-4 w-4" />
