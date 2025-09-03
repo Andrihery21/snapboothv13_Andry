@@ -467,11 +467,12 @@ useEffect(() => {
                     exit={{ opacity: 0, scale: 0.8, y: 10 }}
                     transition={{ type: "spring", stiffness: 300, damping: 25 }}
                      ref={popupRef}
-                    className="fixed w-80 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-2xl shadow-2xl z-50 border border-purple-500/20"
+                    className="absolute z-50 w-80 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-2xl shadow-2xl border border-purple-500/20"
                     style={{
-                       top: `${popupPosition.top}px`,
-                       left: `${popupPosition.left}px`,
-                       transform: 'translateX(-100%)'
+                      top: '100%', // Positionné en dessous du bouton
+                      right: 0,    // Aligné à droite du conteneur parent
+                      marginTop: '8px' // Petit espace entre le bouton et le popup
+
                        }}
 
                   >
