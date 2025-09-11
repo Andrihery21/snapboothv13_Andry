@@ -420,6 +420,7 @@ export default function EcranVerticale1Captures({ eventId}) {
   const [etape, setEtape] = useState('accueil'); // accueil, decompte, validation, magicalEffect, normalEffect, traitement, resultat, qrcode
   const [enTraitement, setEnTraitement] = useState(false);
   const [imageTraitee, setImageTraitee] = useState(null);
+  const [qrTargetUrl, setQrTargetUrl] = useState(null);
   const [decompteResultat, setDecompteResultat] = useState(null);
   const [dureeDecompte, setDureeDecompte] = useState(3); // Valeur par défaut: 3 secondes
   const [webcamEstPret, setWebcamEstPret] = useState(false); 
@@ -1064,6 +1065,30 @@ const savePhoto = async () => {
       throw processedPhotoError;
     }
     
+    // Uploader également l'image traitée dans le bucket 'qrcode' pour le QR code
+    try {
+      const qrcodePath = `${eventID || 'default'}/${fileName}`;
+      const { error: qrUploadError } = await supabase.storage
+        .from('qrcode')
+        .upload(qrcodePath, processedBlob, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+          upsert: true
+        });
+      if (qrUploadError) {
+        console.warn("Upload vers le bucket 'qrcode' échoué:", qrUploadError);
+      } else {
+        const { data: qrUrlData } = await supabase.storage
+          .from('qrcode')
+          .getPublicUrl(qrcodePath);
+        if (qrUrlData?.publicUrl) {
+          setQrTargetUrl(qrUrlData.publicUrl);
+        }
+      }
+    } catch (qrErr) {
+      console.warn('Erreur lors de la création du lien pour le QR code:', qrErr);
+    }
+
     // Sauvegarde automatique locale (non bloquante)
     try {
       await autoSavePhoto(imgSrc, fileName, LOCAL_CAPTURES_PATH);
@@ -1075,7 +1100,7 @@ const savePhoto = async () => {
     // Mettre à jour le statut de la station de capture
     await updateCaptureStationStatus(standId, 'ready');
     
-    // Afficher l'image traitée
+    // Afficher l'image traitée (blob pour l'affichage rapide), et utiliser qrTargetUrl pour le QR
     setImageTraitee(processedImageUrl);
     setEnTraitement(false);
     setEtape('resultat');
@@ -1259,20 +1284,19 @@ const savePhoto = async () => {
             </div>
           )}
           
-          {/* Conteneur qui préserve le ratio */}
-          <div className="relative w-full h-full flex items-center justify-center">
+           {/* Conteneur qui étire le média pour remplir exactement l'écran */}
+          <div className="absolute inset-0 w-full h-full">
           {getMediaType(startScreenUrl) === 'video' ? (
             <video
               autoPlay
               loop
               muted={isMuted}
               playsInline
-              className="max-w-full max-h-full object-contain"
-              style={{
-                  aspectRatio: mediaAspectRatio || 'auto',
-                  width: mediaAspectRatio ? 'auto' : '100%',
-                  height: mediaAspectRatio ? '100%' : 'auto'
-                }}
+              className="w-full h-full object-fill"
+              // style={{
+              //   minWidth: '100%',
+              //  minHeight: '100%'
+              // }}
               onCanPlay={(e) => {setIsStartScreenLoading(false);
                                  setMediaAspectRatio(e.target.videoWidth / e.target.videoHeight);
               }}
@@ -1674,13 +1698,14 @@ const savePhoto = async () => {
                       transition={{ delay: 0.3 }}
                     >
                       <QRCode 
-                        imageUrl={imageTraitee} 
+                        value={qrTargetUrl || ''}
+                        imageUrl={qrTargetUrl}
                         showQROnly={true} 
                         size={180} 
-                        qrColor="#7e22ce"  // Couleur violette
-                        bgColor="#fef3c7"   // Couleur ambre clair
+                        qrColor="#7e22ce"
+                        bgColor="#fef3c7"
                       />
-                    </motion.div>
+                    </motion.div> 
                     <motion.p 
                       className="text-center text-purple-800 font-medium text-xl"
                       initial={{ opacity: 0, y: 20 }}
