@@ -63,6 +63,21 @@ const AdminEffect = () => {
     } else {
       const fetchEffectsFromSupabase = async () => {
         try {
+          // Récupérer la liste d'IDs d'effets liés à l'écran courant
+          const { data: screenRow, error: screenError } = await supabase
+            .from('screens')
+            .select('effect_api')
+            .eq('id', config?.id)
+            .single();
+
+          if (screenError) throw screenError;
+
+          const allowedIds = new Set(
+            Array.isArray(screenRow?.effect_api)
+              ? screenRow.effect_api.map((v) => Number(v)).filter((v) => !Number.isNaN(v))
+              : []
+          );
+
           const { data, error } = await supabase
             .from('effects_api')
             .select('*');
@@ -83,6 +98,9 @@ const AdminEffect = () => {
         const visibleEffects = [];
           
           data.forEach(effect => {
+            const effectIdNum = Number(effect.id);
+            if (Number.isNaN(effectIdNum)) return;
+            if (!allowedIds.has(effectIdNum)) return; // filtrer par écran sélectionné
             if (effect.activeEffectType && organizedEffects[effect.activeEffectType]) {
               organizedEffects[effect.activeEffectType].push({
                 id: effect.id.toString(),
@@ -414,8 +432,58 @@ const AdminEffect = () => {
   
   // Ajoutez la fonction handleSaveNewEffect
 
+  // Met à jour la colonne effect_api du screen sélectionné en y ajoutant l'id de l'effet
+  const appendEffectToScreen = async (newEffectId) => {
+    try {
+      if (!config?.id || !newEffectId) return;
 
+      const screenId = config.id; // UUID du screen courant
 
+      // 1) Récupérer l'array actuel
+      const { data: screenData, error: readError } = await supabase
+        .from('screens')
+        .select('effect_api')
+        .eq('id', screenId)
+        .single();
+
+      if (readError) {
+        console.warn('Lecture effect_api échouée (colonne manquante ?):', readError?.message);
+        return; // Sortir silencieusement si la colonne n'existe pas
+      }
+
+      const currentArray = Array.isArray(screenData?.effect_api) ? screenData.effect_api : [];
+
+      // 2) Ajouter l'id si absent (int8[] attend des nombres)
+      const effectIdAsNumber = typeof newEffectId === 'string' ? Number(newEffectId) : newEffectId;
+      if (Number.isNaN(effectIdAsNumber)) return;
+
+      const nextArray = currentArray.includes(effectIdAsNumber)
+        ? currentArray
+        : [...currentArray, effectIdAsNumber];
+
+      // 3) Mettre à jour
+      const { error: updateError } = await supabase
+        .from('screens')
+        .update({ effect_api: nextArray })
+        .eq('id', screenId);
+
+      if (updateError) {
+        console.error('Mise à jour effect_api échouée:', updateError.message);
+      }
+    } catch (err) {
+      console.error('Erreur appendEffectToScreen:', err);
+    }
+  };
+
+  // Handler appelé après la création d'un effet
+  const handleSaveNewEffect = async (createdEffect) => {
+    try {
+      await refreshEffects();
+      await appendEffectToScreen(createdEffect?.id);
+    } catch (e) {
+      console.warn('Post-traitement ajout effet:', e?.message);
+    }
+  };
   
   
   // Fonction pour gérer le changement d'image
@@ -555,6 +623,21 @@ const AdminEffect = () => {
   //Actualiser l'effet après ajout 
   const refreshEffects = async () => {
   try {
+    // Récupérer la liste d'IDs d'effets liés à l'écran courant
+    const { data: screenRow, error: screenError } = await supabase
+      .from('screens')
+      .select('effect_api')
+      .eq('id', config?.id)
+      .single();
+
+    if (screenError) throw screenError;
+
+    const allowedIds = new Set(
+      Array.isArray(screenRow?.effect_api)
+        ? screenRow.effect_api.map((v) => Number(v)).filter((v) => !Number.isNaN(v))
+        : []
+    );
+
     const { data, error } = await supabase
       .from('effects_api')
       .select('*');
@@ -573,6 +656,9 @@ const AdminEffect = () => {
     const visibleEffects = [];
     
     data.forEach(effect => {
+      const effectIdNum = Number(effect.id);
+      if (Number.isNaN(effectIdNum)) return;
+      if (!allowedIds.has(effectIdNum)) return; // filtrer par écran sélectionné
       if (effect.activeEffectType && organizedEffects[effect.activeEffectType]) {
         organizedEffects[effect.activeEffectType].push({
           id: effect.id.toString(),
@@ -1289,9 +1375,7 @@ const handleSaveEdit = (updatedEffect) => {
         activeEffectType={activeEffectType}
         effectTypes={effectTypes}
         onClose={() => setShowAddEffectPopup(false)}
-        // onSave={handleSaveNewEffect}
-        // resizeImage={resizeImage}
-        onSave={refreshEffects}
+        onSave={handleSaveNewEffect}
       />
     )}
     </motion.div>
