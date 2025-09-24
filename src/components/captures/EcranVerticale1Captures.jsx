@@ -322,13 +322,120 @@ const ImageComparisonSlider = ({ beforeImage, afterImage }) => {
 };
 
 
-// Composant pour la sélection des options d'effet magique
+// Composant pour la sélection des options d'effet magique (filtrage strict par écran, comme countdown_duration)
 const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => {
   const { getText } = useTextContent();
-  
-  // Récupérer les options pour cet effet
-  const options = EFFECTOPTION[effectId] || [];
-  
+  const { config } = useScreenConfig();
+
+  const [filteredOptions, setFilteredOptions] = useState([]);
+
+  useEffect(() => {
+    const filterOptionsForScreen = async () => {
+      try {
+        const options = EFFECTOPTION[effectId] || [];
+
+        if (!config?.id) {
+          setFilteredOptions([]);
+          return;
+        }
+      
+         console.log("itito les ny filtrage ah", config.allowedEffectIds);
+        // Utiliser les IDs autorisés depuis la config (même principe que countdown_duration)
+        const allowedIds = Array.isArray(config.allowedEffectIds) ? config.allowedEffectIds : [];
+        console.log('[Style] allowedEffectIds', allowedIds);
+        if (allowedIds.length === 0) {
+          setFilteredOptions([]);
+          return;
+        }
+
+        // Charger les effets autorisés
+        const { data: effectsData, error: effectsError } = await supabase
+          .from('effects_api')
+          .select('id, activeEffectType, paramsArray, name, preview, is_visible')
+          .in('id', allowedIds)
+          .eq('is_visible', true);
+        if (effectsError) {
+          console.error('Chargement effects_api échoué:', effectsError.message);
+          setFilteredOptions([]);
+          return;
+        }
+        console.log('[Style] effectsData', effectsData);
+
+        // Restreindre au type d'effet magique sélectionné
+        const matchingType = (effectsData || [])
+          .filter((e) => e.activeEffectType === effectId)
+          .filter((e) => e.is_visible === true);
+        console.log('[Style] effectId', effectId, 'matchingType', matchingType);
+
+        // Résoudre paramsArray lorsque ce sont des IDs
+        const allParamIds = matchingType
+          .flatMap((e) => (Array.isArray(e.paramsArray) ? e.paramsArray : []))
+          .filter((id) => typeof id === 'number' || (typeof id === 'string' && id.trim() !== ''));
+
+        const idToParam = new Map();
+        if (allParamIds.length > 0) {
+          const { data: paramsRows } = await supabase
+            .from('params_array')
+            .select('id, name, value')
+            .in('id', allParamIds);
+          (paramsRows || []).forEach((row) => {
+            idToParam.set(row.id, { name: row.name, value: row.value });
+          });
+        }
+        console.log('[Style] resolved params', Array.from(idToParam.entries()));
+
+        // Extraire les valeurs admises pour type/index/textPrompt (AILab/LightX)
+        const allowedValues = new Set();
+        // Et aussi la liste des noms autorisés lorsque paramsArray est vide (cas LightX/Supabase)
+        const allowedNames = new Set((matchingType || []).map((e) => e.name).filter(Boolean));
+        matchingType.forEach((e) => {
+          const arr = Array.isArray(e.paramsArray) ? e.paramsArray : [];
+          arr.forEach((p) => {
+            let name, value;
+            if (p && typeof p === 'object') {
+              // Support multiple shapes: {name, value}, {key, value}, or { index: 0 } / { type: 'x' }
+              name = p.name ?? p.key;
+              value = p.value;
+              if ((name === undefined || value === undefined) && Object.keys(p).length === 1) {
+                const onlyKey = Object.keys(p)[0];
+                name = onlyKey;
+                value = p[onlyKey];
+              }
+            } else if (idToParam.size > 0 && (typeof p === 'number' || typeof p === 'string')) {
+              const resolved = idToParam.get(typeof p === 'string' ? Number(p) : p);
+              if (resolved) {
+                name = resolved.name;
+                value = resolved.value;
+              }
+            }
+            if ((name === 'type' || name === 'index' || name === 'textPrompt') && value !== undefined && value !== null) {
+              allowedValues.add(String(value));
+            }
+          });
+        });
+        console.log('[Style] allowedValues', Array.from(allowedValues));
+        console.log('[Style] allowedNames', Array.from(allowedNames));
+
+        // Filtrage strict des options locales
+        // Si aucune valeur n'est déduite depuis paramsArray, on filtre par nom (name/label)
+        const shouldUseNames = allowedValues.size === 0 && allowedNames.size > 0;
+        const filtered = options.filter((opt) => {
+          if (shouldUseNames) {
+            return allowedNames.has(String(opt.value)) || allowedNames.has(String(opt.label));
+          }
+          return allowedValues.has(String(opt.value));
+        });
+        console.log('[Style] options total', options.length, 'filtered', filtered.length);
+        setFilteredOptions(filtered);
+      } catch (err) {
+        console.error('Erreur filtrage options magiques:', err);
+        setFilteredOptions([]);
+      }
+    };
+
+    filterOptionsForScreen();
+  }, [effectId, config?.id, Array.isArray(config?.allowedEffectIds) ? config.allowedEffectIds.join(',') : '']);
+
   return (
     <motion.div 
       className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4"
@@ -342,7 +449,7 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
         </h2>
         
         <div className="grid grid-cols-3 md:grid-cols-3 gap-2">
-          {options.map((option) => (
+          {filteredOptions.map((option) => (
             <motion.div
               key={option.value}
               className="bg-white/10 rounded-xl overflow-hidden cursor-pointer"
@@ -1630,14 +1737,12 @@ const savePhoto = async () => {
                         )}
                       </div>
                       
-                      {/* Overlay avec texte */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-6 text-center">
-                        <h2 className="text-2xl font-bold text-white">Comparez avant/après</h2>
-                        <p className="text-gray-200 mt-2">Glissez la ligne pour voir les différences</p>
-                        {decompteResultat !== null && decompteResultat > 0 && (
+                      {/* Compteur avant bascule vers l'écran suivant */}
+                      {decompteResultat !== null && decompteResultat > 0 && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-4 text-center">
                           <p className="text-gray-200">Suite dans {decompteResultat}s...</p>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </motion.div>
                   )}
               
@@ -1689,8 +1794,8 @@ const savePhoto = async () => {
                     </motion.button>
                   </div>
                   
-                  {/* QR Code au centre */}
-                  <div className="absolute top-1/4 left-0 right-0 flex flex-col items-center z-10">
+                  {/* QR Code en bas à droite */}
+                  <div className="absolute bottom-6 right-6 flex flex-col items-end z-10">
                     <motion.div 
                       className="bg-white p-4 rounded-xl shadow-lg mb-4"
                       initial={{ scale: 0.8 }}
@@ -1707,7 +1812,7 @@ const savePhoto = async () => {
                       />
                     </motion.div> 
                     <motion.p 
-                      className="text-center text-purple-800 font-medium text-xl"
+                      className="text-right text-purple-800 font-medium text-xl"
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.4 }}

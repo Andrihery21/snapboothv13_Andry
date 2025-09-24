@@ -217,6 +217,10 @@ export function ScreenConfigProvider({ children, screenId: initialScreenId, even
           orientation: data.orientation,
           ratio: data.ratio,
           screen_key: data.screen_key,
+          // Expose les IDs d'effets liés à cet écran (effect_api) pour le filtrage UI
+          allowedEffectIds: Array.isArray(data.effect_api)
+            ? data.effect_api.map((v) => Number(v)).filter((v) => !Number.isNaN(v))
+            : [],
           flash_enabled: data.flash_enabled,
           mirror_preview: data.mirror_preview,
           countdown_duration: data.countdown_duration,
