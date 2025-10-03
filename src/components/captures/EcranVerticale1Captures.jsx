@@ -609,6 +609,123 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
   );
 };
 
+// Composant modal pour saisir l'email
+const EmailModal = ({ isOpen, onClose, onSend, isLoading }) => {
+  const { getText } = useTextContent();
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
+
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setEmailError('');
+    
+    if (!email.trim()) {
+      setEmailError(getText('email_required', 'Veuillez saisir une adresse email'));
+      return;
+    }
+    
+    if (!validateEmail(email)) {
+      setEmailError(getText('email_invalid', 'Veuillez saisir une adresse email valide'));
+      return;
+    }
+    
+    onSend(email);
+  };
+
+  const handleClose = () => {
+    setEmail('');
+    setEmailError('');
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <motion.div 
+      className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={handleClose}
+    >
+      <motion.div 
+        className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            {getText('send_photo_email', 'Envoyer la photo par email')}
+          </h2>
+          <p className="text-gray-600">
+            {getText('enter_email_instruction', 'Saisissez votre adresse email pour recevoir votre photo')}
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              {getText('email_address', 'Adresse email')}
+            </label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              placeholder={getText('email_placeholder', 'votre@email.com')}
+              disabled={isLoading}
+            />
+            {emailError && (
+              <p className="text-red-500 text-sm mt-2">{emailError}</p>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
+              disabled={isLoading}
+            >
+              {getText('cancel', 'Annuler')}
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {getText('sending', 'Envoi...')}
+                </>
+              ) : (
+                getText('send', 'Envoyer')
+              )}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 
 // Composant pour la sélection d'effets normaux
 const NormalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => {
@@ -741,6 +858,11 @@ export default function EcranVerticale1Captures({ eventId}) {
   
   const [selectedMagicalOption, setSelectedMagicalOption] = useState(null);
   const [showEffectOptions, setShowEffectOptions] = useState(false);
+  
+  // États pour le modal d'envoi par email
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailAddress, setEmailAddress] = useState('');
+  const [isEmailSending, setIsEmailSending] = useState(false);
   
 
   const { config, screenId: contextScreenId, saveScreenConfig, updateConfig } = useScreenConfig();
@@ -1623,6 +1745,34 @@ const savePhoto = async () => {
     recommencer();
   };
 
+  // Fonctions pour gérer l'envoi par email
+  const handleSendEmail = async (email) => {
+    setIsEmailSending(true);
+    try {
+      // TODO: Implémenter l'envoi d'email ici
+      console.log('Envoi de la photo par email à:', email);
+      console.log('URL de la photo:', qrTargetUrl || imageTraiteeDisplay);
+      
+      // Simuler un délai d'envoi
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Fermer le modal et afficher un message de succès
+      setShowEmailModal(false);
+      setEmailAddress('');
+      notify.success(getText('email_sent_success', 'Photo envoyée par email avec succès !'));
+      
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi de l\'email:', error);
+      notify.error(getText('email_send_error', 'Erreur lors de l\'envoi de l\'email'));
+    } finally {
+      setIsEmailSending(false);
+    }
+  };
+
+  const openEmailModal = () => {
+    setShowEmailModal(true);
+  };
+
   // Méthode de compatibilité avec l'ancien code
   const handleEffectSelect = (effectValue) => {
     // Déterminer si c'est un effet magique ou normal
@@ -2139,8 +2289,8 @@ const savePhoto = async () => {
                     )}
                   </div>
 
-                  {/* Bouton Nouvelle photo en haut */}
-                  <div className="absolute top-8 left-0 right-0 flex justify-center z-10">
+                  {/* Boutons en haut */}
+                  <div className="absolute top-8 left-0 right-0 flex justify-center gap-4 z-10">
                     <motion.button
                       className="bg-purple-600 hover:bg-purple-700 text-white text-lg font-bold py-3 px-8 rounded-full shadow-lg flex items-center"
                       onClick={retourAccueilPhotobooth}
@@ -2151,6 +2301,18 @@ const savePhoto = async () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                       </svg>
                       {getText('new_photo_button', 'Nouvelle photo')}
+                    </motion.button>
+                    
+                    <motion.button
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold py-3 px-8 rounded-full shadow-lg flex items-center"
+                      onClick={openEmailModal}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      {getText('send_email_button', 'Envoyer par mail')}
                     </motion.button>
                   </div>
                   
@@ -2251,6 +2413,18 @@ const savePhoto = async () => {
           {showAdminDashboard && (
             <AdminPanel onClose={() => setShowAdminDashboard(false)} />
           )}
+          
+          {/* Modal d'envoi par email */}
+          <AnimatePresence>
+            {showEmailModal && (
+              <EmailModal 
+                isOpen={showEmailModal}
+                onClose={() => setShowEmailModal(false)}
+                onSend={handleSendEmail}
+                isLoading={isEmailSending}
+              />
+            )}
+          </AnimatePresence>
         </>
       )}
     </div>

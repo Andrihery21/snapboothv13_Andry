@@ -41,39 +41,83 @@ const getScreenDimensions = (orientation) => {
 /* Composant TemplateSelection - NOUVEAU */
 const TemplateSelection = ({ templates, onSelectTemplate, onClose }) => {
   const { getText } = useTextContent();
-  
+  const [hoveredId, setHoveredId] = useState(null);
+  const [preview, setPreview] = useState(null);
+
   return (
-    <motion.div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4"
+    <motion.div className="fixed inset-0 z-50 bg-gradient-to-b from-black/90 to-purple-900/90 flex flex-col items-center justify-center p-4"
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-      
-      <div className="max-w-4xl w-full bg-purple-800/90 rounded-xl p-6">
-        <h2 className="text-3xl font-bold text-white text-center mb-6">
-          {getText('select_template', 'Sélectionnez un template')}
-        </h2>
-        
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto">
-          {templates.map((template) => (
-            <motion.div key={template.id}
-              className="bg-white/10 rounded-xl overflow-hidden cursor-pointer"
-              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              onClick={() => onSelectTemplate(template)}>
-              
-              <img src={template.url} alt={template.name} 
-                className="w-full h-48 object-contain bg-white" />
-              <div className="p-3 text-center">
-                <p className="text-white font-medium">{template.name}</p>
+      <div className="max-w-6xl w-full rounded-2xl p-6 relative overflow-hidden"
+           style={{ background: 'radial-gradient(1200px 600px at 10% 10%, rgba(255,255,255,0.08), transparent), radial-gradient(800px 400px at 90% 30%, rgba(168,85,247,0.15), transparent)' }}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-3xl font-bold text-white">
+            {getText('select_template', 'Sélectionnez un template')}
+          </h2>
+          <button onClick={onClose} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full">{getText('button_close', 'Fermer')}</button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 max-h-[70vh] overflow-y-auto pr-1">
+          {(templates || []).map((template) => (
+            <motion.button key={template.id}
+              className="group relative bg-white/5 backdrop-blur rounded-2xl overflow-hidden cursor-pointer border border-white/10"
+              onMouseEnter={() => setHoveredId(template.id)}
+              onMouseLeave={() => setHoveredId(null)}
+              onClick={() => onSelectTemplate(template)}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="relative">
+                <img src={template.url} alt={template.name} className="w-full h-44 object-contain bg-white" />
+                <motion.div
+                  className="absolute inset-0"
+                  animate={hoveredId === template.id ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(126,34,206,0.18), transparent)' } : { background: 'transparent' }}
+                  transition={{ duration: 0.3 }}
+                />
+                <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setPreview(template); }} className="bg-black/60 text-white text-xs px-3 py-1 rounded-full">{getText('preview', 'Aperçu')}</button>
+                </div>
               </div>
-            </motion.div>
+              <div className="p-3 text-left">
+                <p className="text-white font-medium truncate">{template.name}</p>
+                <p className="text-white/60 text-xs">{getText('tap_to_use', 'Touchez pour utiliser')}</p>
+              </div>
+              <motion.div
+                className="absolute inset-0 pointer-events-none"
+                style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }}
+                animate={hoveredId === template.id ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25)' } : {} }
+              />
+            </motion.button>
           ))}
         </div>
-        
-        <div className="mt-8 text-center">
-          <button onClick={onClose}
-            className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-full">
-            {getText('button_close', 'Fermer')}
-          </button>
-        </div>
       </div>
+
+      {/* Aperçu plein écran */}
+      <AnimatePresence>
+        {preview && (
+          <motion.div
+            className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-6"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setPreview(null)}
+          >
+            <motion.div
+              className="relative max-w-4xl w-full bg-gradient-to-b from-neutral-900 to-black rounded-2xl overflow-hidden"
+              initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.97 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 flex items-center justify-between">
+                <h3 className="text-white text-lg font-semibold">{preview.name}</h3>
+                <div className="flex gap-2">
+                  <button className="bg-white/10 text-white px-4 py-2 rounded-xl" onClick={() => setPreview(null)}>{getText('close', 'Fermer')}</button>
+                  <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl" onClick={() => { onSelectTemplate(preview); setPreview(null); }}>{getText('use', 'Utiliser')}</button>
+                </div>
+              </div>
+              <div className="bg-black/60 flex items-center justify-center">
+                <img src={preview.url} alt={preview.name} className="max-h-[70vh] w-auto object-contain bg-white" />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
@@ -221,29 +265,112 @@ const TraitementEnCours = ({ message }) => {
 
 // Composant pour la sélection d'effets magiques
 const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => {
-  // Utiliser notre hook pour récupérer les textes
   const { getText } = useTextContent();
+  const [hovered, setHovered] = useState(null);
+  const [inspecting, setInspecting] = useState(null);
 
-
-  
-  // Récupérer le texte pour le mode magique
-  const magicTitle = getText('mode_magic_label', 'Mode Magique');
-  
-  // Filtrer les effets en fonction de la configuration de l'écran si nécessaire
-  const availableEffects = config?.magicalEffect 
+  const availableEffects = config?.magicalEffect
     ? MAGICAL_EFFECTS.filter(effect => effect.id === config.magicalEffect)
     : MAGICAL_EFFECTS;
-  
+
   return (
-    <SelectEffect
-      title={magicTitle}
-      subtitle="Transformez votre photo avec l'IA"
-      list={availableEffects}
-      onSelect={onSelectEffect}
-      onCancel={onCancel}
-      type="magical"
-      showSkip={false}
-    />
+    <motion.div className="fixed inset-0 z-50 bg-gradient-to-b from-black/90 to-indigo-900/90 flex flex-col items-center justify-center p-4"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <div className="max-w-6xl w-full rounded-2xl p-6 relative overflow-hidden"
+           style={{ background: 'radial-gradient(1200px 600px at 10% 10%, rgba(255,255,255,0.08), transparent), radial-gradient(800px 400px at 90% 30%, rgba(59,130,246,0.15), transparent)' }}>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-3xl font-bold text-white">{getText('mode_magic_label', 'Mode Magique')}</h2>
+            <p className="text-white/70">{getText('mode_magic_sub', "Transformez votre photo avec l'IA")}</p>
+          </div>
+          <button onClick={onCancel} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl">{getText('button_back', 'Retour')}</button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 max-h-[70vh] overflow-y-auto pr-1">
+          {/* Option Sans filtre */}
+          <motion.button
+            key="no-filter"
+            className="group relative bg-white/5 backdrop-blur rounded-2xl overflow-hidden cursor-pointer border border-white/10"
+            onMouseEnter={() => setHovered('no-filter')}
+            onMouseLeave={() => setHovered(null)}
+            onClick={() => onSelectEffect('no-filter')}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="relative">
+              <div className="w-full h-44 bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
+                <div className="text-center">
+                  <svg className="w-12 h-12 mx-auto text-gray-700 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-gray-700 text-xs">Original</p>
+                </div>
+              </div>
+              <motion.div
+                className="absolute inset-0"
+                animate={hovered === 'no-filter' ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(59,130,246,0.18), transparent)' } : { background: 'transparent' }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+            <div className="p-3 text-left">
+              <p className="text-white font-medium truncate">{getText('no_filter', 'Sans filtre')}</p>
+              <p className="text-white/60 text-xs">{getText('tap_to_apply', 'Touchez pour appliquer')}</p>
+            </div>
+            <motion.div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }}
+              animate={hovered === 'no-filter' ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25)' } : {} } />
+          </motion.button>
+
+          {availableEffects.map((effect) => (
+            <motion.button key={effect.id}
+              className="group relative bg-white/5 backdrop-blur rounded-2xl overflow-hidden cursor-pointer border border-white/10"
+              onMouseEnter={() => setHovered(effect.id)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => onSelectEffect(effect.id)}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="relative">
+                <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-44 object-cover" />
+                <motion.div
+                  className="absolute inset-0"
+                  animate={hovered === effect.id ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(59,130,246,0.18), transparent)' } : { background: 'transparent' }}
+                  transition={{ duration: 0.3 }}
+                />
+                <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setInspecting(effect); }} className="bg-black/60 text-white text-xs px-3 py-1 rounded-full">{getText('details', 'Détails')}</button>
+                </div>
+              </div>
+              <div className="p-3 text-left">
+                <p className="text-white font-medium truncate">{effect.label || effect.id}</p>
+                <p className="text-white/60 text-xs">{getText('tap_to_apply', 'Touchez pour appliquer')}</p>
+              </div>
+              <motion.div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }}
+                animate={hovered === effect.id ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25)' } : {} } />
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
+      {/* Modale détails */}
+      <AnimatePresence>
+        {inspecting && (
+          <motion.div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setInspecting(null)}>
+            <motion.div className="relative max-w-3xl w-full bg-neutral-900 rounded-2xl overflow-hidden" initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.97 }} onClick={(e) => e.stopPropagation()}>
+              <div className="p-4 flex items-center justify-between">
+                <h3 className="text-white text-lg font-semibold">{inspecting.label || inspecting.id}</h3>
+                <div className="flex gap-2">
+                  <button className="bg:white/10 text-white px-4 py-2 rounded-xl" onClick={() => setInspecting(null)}>{getText('close', 'Fermer')}</button>
+                  <button className="bg-indigo-600 hover:bg-indigo-700 text:white px-4 py-2 rounded-xl" onClick={() => { onSelectEffect(inspecting.id); setInspecting(null); }}>{getText('use', 'Utiliser')}</button>
+                </div>
+              </div>
+              <div className="bg-black/60 flex items-center justify-center">
+                <img src={inspecting.preview} alt={inspecting.label || inspecting.id} className="max-h-[60vh] w-auto object-contain" />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
@@ -322,13 +449,120 @@ const ImageComparisonSlider = ({ beforeImage, afterImage }) => {
 };
 
 
-// Composant pour la sélection des options d'effet magique
+// Composant pour la sélection des options d'effet magique (filtrage strict par écran, comme countdown_duration)
 const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => {
   const { getText } = useTextContent();
-  
-  // Récupérer les options pour cet effet
-  const options = EFFECTOPTION[effectId] || [];
-  
+  const { config } = useScreenConfig();
+
+  const [filteredOptions, setFilteredOptions] = useState([]);
+
+  useEffect(() => {
+    const filterOptionsForScreen = async () => {
+      try {
+        const options = EFFECTOPTION[effectId] || [];
+
+        if (!config?.id) {
+          setFilteredOptions([]);
+          return;
+        }
+      
+         console.log("itito les ny filtrage ah", config.allowedEffectIds);
+        // Utiliser les IDs autorisés depuis la config (même principe que countdown_duration)
+        const allowedIds = Array.isArray(config.allowedEffectIds) ? config.allowedEffectIds : [];
+        console.log('[Style] allowedEffectIds', allowedIds);
+        if (allowedIds.length === 0) {
+          setFilteredOptions([]);
+          return;
+        }
+
+        // Charger les effets autorisés
+        const { data: effectsData, error: effectsError } = await supabase
+          .from('effects_api')
+          .select('id, activeEffectType, paramsArray, name, preview, is_visible')
+          .in('id', allowedIds)
+          .eq('is_visible', true);
+        if (effectsError) {
+          console.error('Chargement effects_api échoué:', effectsError.message);
+          setFilteredOptions([]);
+          return;
+        }
+        console.log('[Style] effectsData', effectsData);
+
+        // Restreindre au type d'effet magique sélectionné
+        const matchingType = (effectsData || [])
+          .filter((e) => e.activeEffectType === effectId)
+          .filter((e) => e.is_visible === true);
+        console.log('[Style] effectId', effectId, 'matchingType', matchingType);
+
+        // Résoudre paramsArray lorsque ce sont des IDs
+        const allParamIds = matchingType
+          .flatMap((e) => (Array.isArray(e.paramsArray) ? e.paramsArray : []))
+          .filter((id) => typeof id === 'number' || (typeof id === 'string' && id.trim() !== ''));
+
+        const idToParam = new Map();
+        if (allParamIds.length > 0) {
+          const { data: paramsRows } = await supabase
+            .from('params_array')
+            .select('id, name, value')
+            .in('id', allParamIds);
+          (paramsRows || []).forEach((row) => {
+            idToParam.set(row.id, { name: row.name, value: row.value });
+          });
+        }
+        console.log('[Style] resolved params', Array.from(idToParam.entries()));
+
+        // Extraire les valeurs admises pour type/index/textPrompt (AILab/LightX)
+        const allowedValues = new Set();
+        // Et aussi la liste des noms autorisés lorsque paramsArray est vide (cas LightX/Supabase)
+        const allowedNames = new Set((matchingType || []).map((e) => e.name).filter(Boolean));
+        matchingType.forEach((e) => {
+          const arr = Array.isArray(e.paramsArray) ? e.paramsArray : [];
+          arr.forEach((p) => {
+            let name, value;
+            if (p && typeof p === 'object') {
+              // Support multiple shapes: {name, value}, {key, value}, or { index: 0 } / { type: 'x' }
+              name = p.name ?? p.key;
+              value = p.value;
+              if ((name === undefined || value === undefined) && Object.keys(p).length === 1) {
+                const onlyKey = Object.keys(p)[0];
+                name = onlyKey;
+                value = p[onlyKey];
+              }
+            } else if (idToParam.size > 0 && (typeof p === 'number' || typeof p === 'string')) {
+              const resolved = idToParam.get(typeof p === 'string' ? Number(p) : p);
+              if (resolved) {
+                name = resolved.name;
+                value = resolved.value;
+              }
+            }
+            if ((name === 'type' || name === 'index' || name === 'textPrompt') && value !== undefined && value !== null) {
+              allowedValues.add(String(value));
+            }
+          });
+        });
+        console.log('[Style] allowedValues', Array.from(allowedValues));
+        console.log('[Style] allowedNames', Array.from(allowedNames));
+
+        // Filtrage strict des options locales
+        // Si aucune valeur n'est déduite depuis paramsArray, on filtre par nom (name/label)
+        const shouldUseNames = allowedValues.size === 0 && allowedNames.size > 0;
+        const filtered = options.filter((opt) => {
+          if (shouldUseNames) {
+            return allowedNames.has(String(opt.value)) || allowedNames.has(String(opt.label));
+          }
+          return allowedValues.has(String(opt.value));
+        });
+        console.log('[Style] options total', options.length, 'filtered', filtered.length);
+        setFilteredOptions(filtered);
+      } catch (err) {
+        console.error('Erreur filtrage options magiques:', err);
+        setFilteredOptions([]);
+      }
+    };
+
+    filterOptionsForScreen();
+  }, [effectId, config?.id, Array.isArray(config?.allowedEffectIds) ? config.allowedEffectIds.join(',') : '']);
+
   return (
     <motion.div 
       className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4"
@@ -342,7 +576,7 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
         </h2>
         
         <div className="grid grid-cols-3 md:grid-cols-3 gap-2">
-          {options.map((option) => (
+          {filteredOptions.map((option) => (
             <motion.div
               key={option.value}
               className="bg-white/10 rounded-xl overflow-hidden cursor-pointer"
@@ -375,30 +609,199 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
   );
 };
 
+// Composant modal pour saisir l'email
+const EmailModal = ({ isOpen, onClose, onSend, isLoading }) => {
+  const { getText } = useTextContent();
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
+
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setEmailError('');
+    
+    if (!email.trim()) {
+      setEmailError(getText('email_required', 'Veuillez saisir une adresse email'));
+      return;
+    }
+    
+    if (!validateEmail(email)) {
+      setEmailError(getText('email_invalid', 'Veuillez saisir une adresse email valide'));
+      return;
+    }
+    
+    onSend(email);
+  };
+
+  const handleClose = () => {
+    setEmail('');
+    setEmailError('');
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <motion.div 
+      className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={handleClose}
+    >
+      <motion.div 
+        className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            {getText('send_photo_email', 'Envoyer la photo par email')}
+          </h2>
+          <p className="text-gray-600">
+            {getText('enter_email_instruction', 'Saisissez votre adresse email pour recevoir votre photo')}
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              {getText('email_address', 'Adresse email')}
+            </label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              placeholder={getText('email_placeholder', 'votre@email.com')}
+              disabled={isLoading}
+            />
+            {emailError && (
+              <p className="text-red-500 text-sm mt-2">{emailError}</p>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
+              disabled={isLoading}
+            >
+              {getText('cancel', 'Annuler')}
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {getText('sending', 'Envoi...')}
+                </>
+              ) : (
+                getText('send', 'Envoyer')
+              )}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 
 // Composant pour la sélection d'effets normaux
 const NormalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => {
-  // Utiliser notre hook pour récupérer les textes
   const { getText } = useTextContent();
-  
-  // Récupérer le texte pour le mode normal
-  const normalTitle = getText('mode_normal_label', 'Mode Normal');
-  
-  // Filtrer les effets en fonction de la configuration de l'écran si nécessaire
+  const [hovered, setHovered] = useState(null);
+  const [inspecting, setInspecting] = useState(null);
+
   const availableEffects = config?.normalEffect 
     ? NORMAL_EFFECTS.filter(effect => effect.id === config.normalEffect)
     : NORMAL_EFFECTS;
-  
+
   return (
-    <SelectEffect
-      title={normalTitle}
-      subtitle="Ajoutez une touche finale"
-      list={availableEffects}
-      onSelect={onSelectEffect}
-      onCancel={onCancel}
-      type="normal"
-      showSkip={true}
-    />
+    <motion.div className="fixed inset-0 z-50 bg-gradient-to-b from-black/90 to-purple-900/90 flex flex-col items-center justify-center p-4"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <div className="max-w-6xl w-full rounded-2xl p-6 relative overflow-hidden"
+           style={{ background: 'radial-gradient(1200px 600px at 10% 10%, rgba(255,255,255,0.08), transparent), radial-gradient(800px 400px at 90% 30%, rgba(168,85,247,0.15), transparent)' }}>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-3xl font-bold text-white">{getText('mode_normal_label', 'Mode Normal')}</h2>
+            <p className="text-white/70">{getText('mode_normal_sub', 'Ajoutez une touche finale')}</p>
+          </div>
+          <button onClick={onCancel} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl">{getText('button_back', 'Retour')}</button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 max-h-[70vh] overflow-y-auto pr-1">
+          {availableEffects.map((effect) => (
+            <motion.button key={effect.id}
+              className="group relative bg-white/5 backdrop-blur rounded-2xl overflow-hidden cursor-pointer border border-white/10"
+              onMouseEnter={() => setHovered(effect.id)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => onSelectEffect(effect.id)}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="relative">
+                <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-44 object-cover" />
+                <motion.div
+                  className="absolute inset-0"
+                  animate={hovered === effect.id ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(168,85,247,0.18), transparent)' } : { background: 'transparent' }}
+                  transition={{ duration: 0.3 }}
+                />
+                <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setInspecting(effect); }} className="bg-black/60 text-white text-xs px-3 py-1 rounded-full">{getText('details', 'Détails')}</button>
+                </div>
+              </div>
+              <div className="p-3 text-left">
+                <p className="text-white font-medium truncate">{effect.label || effect.id}</p>
+                <p className="text-white/60 text-xs">{getText('tap_to_apply', 'Touchez pour appliquer')}</p>
+              </div>
+              <motion.div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }}
+                animate={hovered === effect.id ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25)' } : {} } />
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
+      {/* Modale détails */}
+      <AnimatePresence>
+        {inspecting && (
+          <motion.div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setInspecting(null)}>
+            <motion.div className="relative max-w-3xl w-full bg-neutral-900 rounded-2xl overflow-hidden" initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.97 }} onClick={(e) => e.stopPropagation()}>
+              <div className="p-4 flex items-center justify-between">
+                <h3 className="text-white text-lg font-semibold">{inspecting.label || inspecting.id}</h3>
+                <div className="flex gap-2">
+                  <button className="bg-white/10 text-white px-4 py-2 rounded-xl" onClick={() => setInspecting(null)}>{getText('close', 'Fermer')}</button>
+                  <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl" onClick={() => { onSelectEffect(inspecting.id); setInspecting(null); }}>{getText('use', 'Utiliser')}</button>
+                </div>
+              </div>
+              <div className="bg-black/60 flex items-center justify-center">
+                <img src={inspecting.preview} alt={inspecting.label || inspecting.id} className="max-h-[60vh] w-auto object-contain" />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
@@ -420,6 +823,8 @@ export default function EcranVerticale2Captures({ eventId}) {
   const [etape, setEtape] = useState('accueil'); // accueil, decompte, validation, magicalEffect, normalEffect, traitement, resultat, qrcode
   const [enTraitement, setEnTraitement] = useState(false);
   const [imageTraitee, setImageTraitee] = useState(null);
+  const [imageTraiteeDisplay, setImageTraiteeDisplay] = useState(null); // Image avec effets de touche finale pour l'affichage
+  const [qrTargetUrl, setQrTargetUrl] = useState(null);
   const [decompteResultat, setDecompteResultat] = useState(null);
   const [dureeDecompte, setDureeDecompte] = useState(3); // Valeur par défaut: 3 secondes
   const [webcamEstPret, setWebcamEstPret] = useState(false); 
@@ -454,6 +859,11 @@ export default function EcranVerticale2Captures({ eventId}) {
   const [selectedMagicalOption, setSelectedMagicalOption] = useState(null);
   const [showEffectOptions, setShowEffectOptions] = useState(false);
   
+  // États pour le modal d'envoi par email
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailAddress, setEmailAddress] = useState('');
+  const [isEmailSending, setIsEmailSending] = useState(false);
+  
 
   const { config, screenId: contextScreenId, saveScreenConfig, updateConfig } = useScreenConfig();
   // Utiliser notre hook pour accéder aux textes personnalisés
@@ -472,6 +882,26 @@ export default function EcranVerticale2Captures({ eventId}) {
       setFrameUrl(config.frame_url);
       console.log("Configuration de l'écran chargée :", config);    }
   }, [config]);
+
+  // Appliquer les effets de touche finale une fois que l'image traitée est générée
+  useEffect(() => {
+    const applyFinalTouchToImage = async () => {
+      if (imageTraitee && selectedNormalEffect && selectedNormalEffect !== 'normal' && selectedNormalEffect !== 'v-normal') {
+        try {
+          console.log('Application des effets de touche finale:', selectedNormalEffect);
+          const displayImageUrl = await applyFinalTouchEffects(imageTraitee, selectedNormalEffect);
+          setImageTraiteeDisplay(displayImageUrl);
+        } catch (error) {
+          console.warn('Erreur lors de l\'application des effets de touche finale:', error);
+          setImageTraiteeDisplay(imageTraitee);
+        }
+      } else if (imageTraitee) {
+        setImageTraiteeDisplay(imageTraitee);
+      }
+    };
+
+    applyFinalTouchToImage();
+  }, [imageTraitee, selectedNormalEffect]);
 
 
   // Récupérer un événement par défaut si aucun n'est spécifié
@@ -612,6 +1042,134 @@ export default function EcranVerticale2Captures({ eventId}) {
   return null;
 };
 
+  // Applique les effets de touche finale (sepia, noir et blanc, etc.) à une image pour l'affichage
+  const applyFinalTouchEffects = async (imageUrl, normalEffect) => {
+    try {
+      if (!imageUrl || !normalEffect || normalEffect === 'normal' || normalEffect === 'v-normal') {
+        return imageUrl; // Pas d'effet à appliquer
+      }
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      const loaded = await new Promise((resolve, reject) => {
+        img.onload = () => resolve(true);
+        img.onerror = reject;
+        img.src = imageUrl;
+      });
+      
+      if (!loaded) return imageUrl;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      
+      // Dessiner l'image source
+      ctx.drawImage(img, 0, 0);
+      
+      // Appliquer l'effet selon le type
+      if (normalEffect === 'noir-et-blanc') {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // Convertir en noir et blanc
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          data[i] = gray;     // Rouge
+          data[i + 1] = gray; // Vert
+          data[i + 2] = gray; // Bleu
+        }
+        ctx.putImageData(imageData, 0, 0);
+      } else if (normalEffect === 'sepia') {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // Appliquer l'effet sepia
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          
+          const newR = Math.min(255, (r * 0.393) + (g * 0.769) + (b * 0.189));
+          const newG = Math.min(255, (r * 0.349) + (g * 0.686) + (b * 0.168));
+          const newB = Math.min(255, (r * 0.272) + (g * 0.534) + (b * 0.131));
+          
+          data[i] = newR;
+          data[i + 1] = newG;
+          data[i + 2] = newB;
+        }
+        ctx.putImageData(imageData, 0, 0);
+      } else if (normalEffect === 'glow-up') {
+        // Effet glow-up (luminosité augmentée)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.min(255, data[i] * 1.2);     // Rouge
+          data[i + 1] = Math.min(255, data[i + 1] * 1.2); // Vert
+          data[i + 2] = Math.min(255, data[i + 2] * 1.2); // Bleu
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }
+      
+      return canvas.toDataURL('image/jpeg', 0.9);
+    } catch (e) {
+      console.warn('applyFinalTouchEffects failed, using original image', e);
+      return imageUrl;
+    }
+  };
+
+  // Normalise une capture (dataURL) vers les dimensions de l'écran en CROPPANT (sans rotation)
+  const normalizeScreenshotToScreen = async (dataUrl) => {
+    try {
+      if (!dataUrl) return dataUrl;
+      const img = new Image();
+      // Empêche la pollution CORS lors du dessin
+      img.crossOrigin = 'anonymous';
+      const loaded = await new Promise((resolve, reject) => {
+        img.onload = () => resolve(true);
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+      if (!loaded) return dataUrl;
+
+      const targetWidth = SCREEN_WIDTH;
+      const targetHeight = SCREEN_HEIGHT;
+      const targetAspect = targetWidth / targetHeight;
+
+      const sourceWidth = img.width;
+      const sourceHeight = img.height;
+      const sourceAspect = sourceWidth / sourceHeight;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      const ctx = canvas.getContext('2d');
+
+      // Fond neutre
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+      // Échelle en mode "cover" (crop): on remplit entièrement le canvas puis on centre
+      const scale = Math.max(targetWidth / sourceWidth, targetHeight / sourceHeight);
+      const drawW = sourceWidth * scale;
+      const drawH = sourceHeight * scale;
+      const dx = (targetWidth - drawW) / 2; // centré horizontalement
+      const dy = (targetHeight - drawH) / 2; // centré verticalement
+
+      ctx.drawImage(img, dx, dy, drawW, drawH);
+
+      return canvas.toDataURL('image/jpeg', 0.92);
+    } catch (e) {
+      console.warn('normalizeScreenshotToScreen failed, using raw screenshot', e);
+      return dataUrl;
+    }
+  };
+
   //Fonction pour détecter les dimensions de l'image traitée
   const handleImageLoad = (e) => {
   setImageDimensions({
@@ -719,6 +1277,22 @@ export default function EcranVerticale2Captures({ eventId}) {
   
   // Modifiez la fonction selectionnerEffetMagique :
 const selectionnerEffetMagique = (effetId) => {
+  // Gestion spéciale: Sans filtre => pas d'effet magique
+  if (effetId === 'no-filter') {
+    setSelectedMagicalEffect(null);
+    setSelectedMagicalOption(null);
+    // Aller directement à la sélection d'effet normal
+    if (config && config.normalEffect) {
+      setSelectedNormalEffect(config.normalEffect);
+      setEtape('traitement');
+      setEnTraitement(true);
+      savePhoto();
+    } else {
+      setEtape('normalEffect');
+    }
+    return;
+  }
+
   setSelectedMagicalEffect(effetId);
   
   // Vérifier si cet effet a des options
@@ -853,7 +1427,13 @@ const confirmerTemplate = () => {
           setTimeout(() => {
             if (webcamRef.current) {
               const imageSrc = webcamRef.current.getScreenshot();
-              setImgSrc(imageSrc);
+              // Normaliser la capture au ratio et à l'orientation de l'écran
+              normalizeScreenshotToScreen(imageSrc).then((normalized) => {
+                setImgSrc(normalized);
+              }).catch(() => {
+                // En cas d'échec de normalisation, utiliser la capture brute
+                setImgSrc(imageSrc);
+              });
               setEtape('validation');
               setDecompte(null);
             }
@@ -1054,7 +1634,8 @@ const savePhoto = async () => {
           magical_effect: selectedMagicalEffect || null,
           normal_effect: selectedNormalEffect || null,
           filter_name: selectedMagicalEffect || selectedNormalEffect || 'processed',
-         
+          template_id: selectedTemplate ? selectedTemplate.id : null,
+          template_name: selectedTemplate ? selectedTemplate.name : null
         }
       ])
       .select();
@@ -1063,6 +1644,30 @@ const savePhoto = async () => {
       throw processedPhotoError;
     }
     
+    // Uploader également l'image traitée dans le bucket 'qrcode' pour le QR code
+    try {
+      const qrcodePath = `${eventID || 'default'}/${fileName}`;
+      const { error: qrUploadError } = await supabase.storage
+        .from('qrcode')
+        .upload(qrcodePath, processedBlob, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+          upsert: true
+        });
+      if (qrUploadError) {
+        console.warn("Upload vers le bucket 'qrcode' échoué:", qrUploadError);
+      } else {
+        const { data: qrUrlData } = await supabase.storage
+          .from('qrcode')
+          .getPublicUrl(qrcodePath);
+        if (qrUrlData?.publicUrl) {
+          setQrTargetUrl(qrUrlData.publicUrl);
+        }
+      }
+    } catch (qrErr) {
+      console.warn('Erreur lors de la création du lien pour le QR code:', qrErr);
+    }
+
     // Sauvegarde automatique locale (non bloquante)
     try {
       await autoSavePhoto(imgSrc, fileName, LOCAL_CAPTURES_PATH);
@@ -1074,8 +1679,10 @@ const savePhoto = async () => {
     // Mettre à jour le statut de la station de capture
     await updateCaptureStationStatus(standId, 'ready');
     
-    // Afficher l'image traitée
+    // Afficher l'image traitée (blob pour l'affichage rapide), et utiliser qrTargetUrl pour le QR
     setImageTraitee(processedImageUrl);
+    setImageTraiteeDisplay(processedImageUrl); // Initialiser avec l'image traitée
+    
     setEnTraitement(false);
     setEtape('resultat');
     
@@ -1110,6 +1717,7 @@ const savePhoto = async () => {
   const recommencer = () => {
     setImgSrc(null);
     setImageTraitee(null);
+    setImageTraiteeDisplay(null);
     setDecompteResultat(null);
     setSelectedMagicalEffect(null);
     setSelectedNormalEffect(null);
@@ -1135,6 +1743,34 @@ const savePhoto = async () => {
   // Fonction pour retourner à l'écran d'accueil du photobooth
   const retourAccueilPhotobooth = () => {
     recommencer();
+  };
+
+  // Fonctions pour gérer l'envoi par email
+  const handleSendEmail = async (email) => {
+    setIsEmailSending(true);
+    try {
+      // TODO: Implémenter l'envoi d'email ici
+      console.log('Envoi de la photo par email à:', email);
+      console.log('URL de la photo:', qrTargetUrl || imageTraiteeDisplay);
+      
+      // Simuler un délai d'envoi
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Fermer le modal et afficher un message de succès
+      setShowEmailModal(false);
+      setEmailAddress('');
+      notify.success(getText('email_sent_success', 'Photo envoyée par email avec succès !'));
+      
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi de l\'email:', error);
+      notify.error(getText('email_send_error', 'Erreur lors de l\'envoi de l\'email'));
+    } finally {
+      setIsEmailSending(false);
+    }
+  };
+
+  const openEmailModal = () => {
+    setShowEmailModal(true);
   };
 
   // Méthode de compatibilité avec l'ancien code
@@ -1258,20 +1894,19 @@ const savePhoto = async () => {
             </div>
           )}
           
-          {/* Conteneur qui préserve le ratio */}
-          <div className="relative w-full h-full flex items-center justify-center">
+           {/* Conteneur qui étire le média pour remplir exactement l'écran */}
+          <div className="absolute inset-0 w-full h-full">
           {getMediaType(startScreenUrl) === 'video' ? (
             <video
               autoPlay
               loop
               muted={isMuted}
               playsInline
-              className="max-w-full max-h-full object-contain"
-              style={{
-                  aspectRatio: mediaAspectRatio || 'auto',
-                  width: mediaAspectRatio ? 'auto' : '100%',
-                  height: mediaAspectRatio ? '100%' : 'auto'
-                }}
+              className="w-full h-full object-fill"
+              // style={{
+              //   minWidth: '100%',
+              //  minHeight: '100%'
+              // }}
               onCanPlay={(e) => {setIsStartScreenLoading(false);
                                  setMediaAspectRatio(e.target.videoWidth / e.target.videoHeight);
               }}
@@ -1328,6 +1963,9 @@ const savePhoto = async () => {
             audio={false}
             ref={webcamRef}
             screenshotFormat="image/jpeg"
+            screenshotWidth={SCREEN_WIDTH}
+            screenshotHeight={SCREEN_HEIGHT}
+            forceScreenshotSourceSize={true}
             videoConstraints={{
               width: SCREEN_WIDTH,
               height: SCREEN_HEIGHT,
@@ -1482,10 +2120,14 @@ const savePhoto = async () => {
                     audio={false}
                     ref={webcamRef}
                     screenshotFormat="image/jpeg"
+                    screenshotWidth={SCREEN_WIDTH}
+                    screenshotHeight={SCREEN_HEIGHT}
+                    forceScreenshotSourceSize={true}
                     videoConstraints={{
                       width: SCREEN_WIDTH,
                       height: SCREEN_HEIGHT,
-                      facingMode: "user"
+                      facingMode: "user",
+                      aspectRatio: SCREEN_WIDTH / SCREEN_HEIGHT
                     }}
                     className="w-full h-full object-contain"
                     onUserMediaError={(err) => {
@@ -1580,14 +2222,14 @@ const savePhoto = async () => {
               )}
               
             {/* Écran de résultat */}
-                  {etape === 'resultat' && imageTraitee && (
+                  {etape === 'resultat' && imageTraiteeDisplay && (
                     <motion.div className="min-h-screen flex flex-col relative">
                       {/* Conteneur principal */}
                       <div className="absolute inset-0 flex items-center justify-center bg-white">
-                        {/* Image traitée */}
+                        {/* Image traitée avec effets de touche finale */}
                         <div className="relative" style={{ width: '80%', aspectRatio: `${imageDimensions.width}/${imageDimensions.height}` }}>
                           <img 
-                            src={imageTraitee} 
+                            src={imageTraiteeDisplay} 
                             alt="Photo traitée" 
                             className="w-full h-full object-contain"
                           />
@@ -1605,14 +2247,12 @@ const savePhoto = async () => {
                         )}
                       </div>
                       
-                      {/* Overlay avec texte */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-6 text-center">
-                        <h2 className="text-2xl font-bold text-white">Comparez avant/après</h2>
-                        <p className="text-gray-200 mt-2">Glissez la ligne pour voir les différences</p>
-                        {decompteResultat !== null && decompteResultat > 0 && (
+                      {/* Compteur avant bascule vers l'écran suivant */}
+                      {decompteResultat !== null && decompteResultat > 0 && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-4 text-center">
                           <p className="text-gray-200">Suite dans {decompteResultat}s...</p>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </motion.div>
                   )}
               
@@ -1627,10 +2267,10 @@ const savePhoto = async () => {
                 >
                   {/* Image traitée en arrière-plan (avec template déjà intégré) */}
                   <div className="absolute inset-0 flex items-center justify-center bg-white">
-                    {/* Image traitée */}
+                    {/* Image traitée avec effets de touche finale */}
                     <div className="relative" style={{ width: '80%', aspectRatio: `${imageDimensions.width}/${imageDimensions.height}` }}>
                       <img 
-                        src={imageTraitee} 
+                        src={imageTraiteeDisplay || imageTraitee} 
                         alt="Photo traitée" 
                         className="w-full h-full object-contain"
                         onLoad={handleImageLoad}
@@ -1649,8 +2289,8 @@ const savePhoto = async () => {
                     )}
                   </div>
 
-                  {/* Bouton Nouvelle photo en haut */}
-                  <div className="absolute top-8 left-0 right-0 flex justify-center z-10">
+                  {/* Boutons en haut */}
+                  <div className="absolute top-8 left-0 right-0 flex justify-center gap-4 z-10">
                     <motion.button
                       className="bg-purple-600 hover:bg-purple-700 text-white text-lg font-bold py-3 px-8 rounded-full shadow-lg flex items-center"
                       onClick={retourAccueilPhotobooth}
@@ -1662,10 +2302,22 @@ const savePhoto = async () => {
                       </svg>
                       {getText('new_photo_button', 'Nouvelle photo')}
                     </motion.button>
+                    
+                    <motion.button
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold py-3 px-8 rounded-full shadow-lg flex items-center"
+                      onClick={openEmailModal}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      {getText('send_email_button', 'Envoyer par mail')}
+                    </motion.button>
                   </div>
                   
-                  {/* QR Code au centre */}
-                  <div className="absolute top-1/4 left-0 right-0 flex flex-col items-center z-10">
+                  {/* QR Code en bas à droite */}
+                  <div className="absolute bottom-6 right-6 flex flex-col items-end z-10">
                     <motion.div 
                       className="bg-white p-4 rounded-xl shadow-lg mb-4"
                       initial={{ scale: 0.8 }}
@@ -1673,15 +2325,16 @@ const savePhoto = async () => {
                       transition={{ delay: 0.3 }}
                     >
                       <QRCode 
-                        imageUrl={imageTraitee} 
+                        value={qrTargetUrl || ''}
+                        imageUrl={qrTargetUrl}
                         showQROnly={true} 
                         size={180} 
-                        qrColor="#7e22ce"  // Couleur violette
-                        bgColor="#fef3c7"   // Couleur ambre clair
+                        qrColor="#7e22ce"
+                        bgColor="#fef3c7"
                       />
-                    </motion.div>
+                    </motion.div> 
                     <motion.p 
-                      className="text-center text-purple-800 font-medium text-xl"
+                      className="text-right text-purple-800 font-medium text-xl"
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.4 }}
@@ -1760,6 +2413,18 @@ const savePhoto = async () => {
           {showAdminDashboard && (
             <AdminPanel onClose={() => setShowAdminDashboard(false)} />
           )}
+          
+          {/* Modal d'envoi par email */}
+          <AnimatePresence>
+            {showEmailModal && (
+              <EmailModal 
+                isOpen={showEmailModal}
+                onClose={() => setShowEmailModal(false)}
+                onSend={handleSendEmail}
+                isLoading={isEmailSending}
+              />
+            )}
+          </AnimatePresence>
         </>
       )}
     </div>
