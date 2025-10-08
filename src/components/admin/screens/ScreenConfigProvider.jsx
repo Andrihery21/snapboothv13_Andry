@@ -199,7 +199,7 @@ export function ScreenConfigProvider({ children, screenId: initialScreenId, even
       
       const { data, error } = await supabase
         .from('screens')
-        .select('*')
+        .select('*, cartoon, caricature, dessin, univers, fluxcontext_1, nano_banana')
         .eq('id', uuid)
         .single();
       
@@ -225,6 +225,13 @@ export function ScreenConfigProvider({ children, screenId: initialScreenId, even
           mirror_preview: data.mirror_preview,
           countdown_duration: data.countdown_duration,
           frame_url: data.frame_url, // Ajout de frame_url directement depuis la table
+          // Colonnes booléennes pour les groupes d'effets
+          cartoon: data.cartoon || false,
+          caricature: data.caricature || false,
+          dessin: data.dessin || false,
+          univers: data.univers || false,
+          fluxcontext_1: data.fluxcontext_1 || false,
+          fluxcontext2: data.fluxcontext2 || false,
           capture_params: { ...DEFAULT_CAPTURE_PARAMS, ...configData.capture_params },
           appearance_params: { ...DEFAULT_APPEARANCE_PARAMS, ...configData.appearance_params },
           advanced_params: { ...DEFAULT_ADVANCED_PARAMS, ...configData.advanced_params },

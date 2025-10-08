@@ -269,9 +269,28 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
   const [hovered, setHovered] = useState(null);
   const [inspecting, setInspecting] = useState(null);
 
+  // Déterminer les groupes actifs depuis Supabase (via config.screen flags)
+  const screenFlags = {
+  cartoon: config?.cartoon,
+  caricature: config?.caricature,
+  dessin: config?.dessin,
+  univers: config?.univers,
+  fluxcontext_1: config?.fluxcontext_1,
+  nano_banana: config?.nano_banana,
+  };
+
+  const activeGroupIds = new Set(
+    Object.entries(screenFlags)
+      .filter(([, val]) => val === true)
+      .map(([key]) => key)
+  );
+
+  // Filtrer les effets magiques selon les groupes actifs (pas de fallback)
+  const groupsFilteredByFlags = MAGICAL_EFFECTS.filter(effect => activeGroupIds.has(effect.id));
+
   const availableEffects = config?.magicalEffect
-    ? MAGICAL_EFFECTS.filter(effect => effect.id === config.magicalEffect)
-    : MAGICAL_EFFECTS;
+    ? groupsFilteredByFlags.filter(effect => effect.id === config.magicalEffect)
+    : groupsFilteredByFlags;
 
   return (
     <motion.div className="fixed inset-0 z-50 bg-gradient-to-b from-black/90 to-indigo-900/90 flex flex-col items-center justify-center p-4"

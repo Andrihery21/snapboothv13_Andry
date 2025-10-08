@@ -58,10 +58,10 @@ export const MAGICAL_EFFECTS = [
     preview: 'https://azafzikvwdartavmpwsc.supabase.co/storage/v1/object/public/fluxkontext//flux-kontext-apps%201.webp'
   },
   { 
-    id: 'fluxcontext2', 
-    name: 'AI FLUX KONTEXT Replicate', 
+    id: 'nano_banana', 
+    name: 'Génération et retouche photo IA', 
     description: 'Génère des visuels hilarants et stylisés, avec une cohérence visuelle impressionnante',
-    preview: 'https://azafzikvwdartavmpwsc.supabase.co/storage/v1/object/public/fluxkontext//flux-kontext-apps%202.webp'
+    preview: 'https://azafzikvwdartavmpwsc.supabase.co/storage/v1/object/public/assets/Nano%20banana/Generated%20Image%20October%2007,%202025%20-%2012_15PM.webp'
   }
 ];
 

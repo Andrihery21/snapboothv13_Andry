@@ -40,19 +40,54 @@ const AdminEffect = () => {
   const [testResult, setTestResult] = useState(null);
   const [showAddEffectPopup, setShowAddEffectPopup] = useState(false);
   const [selectedEffects, setSelectedEffects] = useState([]);
+  // Etats pour colonnes booléennes de la table screens (groupes par onglet)
+  const [groupFlags, setGroupFlags] = useState({
+  cartoon: false,
+  caricature: false,
+  dessin: false,
+  univers: false,
+  fluxcontext_1: false,
+  nano_banana: false
+  });
   
   // Types d'effets disponibles
   const effectTypes = [
-    { id: 'cartoon', label: 'Cartoon', icon: '🎭' },
-    { id: 'caricature', label: 'Caricature', icon: '🤡' },
-    { id: 'dessin', label: 'Dessin', icon: '✏️' },
-    { id: 'univers', label: 'Univers', icon: '🌌' },
-    { id: 'fluxcontext_1', label: 'Flux Kontext 1', icon: '⭐' },
-    { id: 'fluxcontext2', label: 'Flux Kontext 2', icon: '⚡' }
+  { id: 'cartoon', label: 'Cartoon', icon: '🎭' },
+  { id: 'caricature', label: 'Caricature', icon: '🤡' },
+  { id: 'dessin', label: 'Dessin', icon: '✏️' },
+  { id: 'univers', label: 'Univers', icon: '🌌' },
+  { id: 'fluxcontext_1', label: 'Flux Kontext 1', icon: '⭐' },
+  { id: 'nano_banana', label: 'Nano Banana', icon: '🍌' }
   ];
   
   // Charger les effets depuis la configuration
   useEffect(() => {
+    // Charger les colonnes bool de screens pour l'écran courant
+    const fetchGroupFlags = async () => {
+      try {
+        if (!config?.id) return;
+        const { data, error } = await supabase
+          .from('screens')
+          .select('cartoon, caricature, dessin, univers, fluxcontext_1, nano_banana')
+          .eq('id', config.id)
+          .single();
+        if (error) throw error;
+        if (data) {
+          setGroupFlags({
+            cartoon: !!data.cartoon,
+            caricature: !!data.caricature,
+            dessin: !!data.dessin,
+            univers: !!data.univers,
+            fluxcontext_1: !!data.fluxcontext_1,
+            nano_banana: !!data.nano_banana
+          });
+        }
+      } catch (e) {
+        console.warn('Chargement des groupes (bool) échoué:', e?.message);
+      }
+    };
+
+    fetchGroupFlags();
     if (config && config.effects) {
       setEffects(config.effects);
       // Récupérer les effets sélectionnés depuis la config
@@ -424,6 +459,38 @@ const AdminEffect = () => {
   fetchEffectsFromSupabase();
   } 
   }, [config]);
+
+  // Mapping onglet -> nom de colonne Supabase
+  const effectTypeToColumn = {
+    cartoon: 'cartoon',
+    caricature: 'caricature',
+    dessin: 'dessin',
+    univers: 'univers',
+    fluxcontext_1: 'fluxcontext_1',
+    fluxcontext2: 'fluxcontext2'
+  };
+
+  // Toggle d'un groupe pour l'onglet actif
+  const handleToggleGroup = async (typeId, nextValue) => {
+    const columnName = effectTypeToColumn[typeId];
+    if (!columnName || !config?.id) return;
+
+    // Optimiste
+    setGroupFlags((prev) => ({ ...prev, [typeId]: nextValue }));
+    try {
+      const { error } = await supabase
+        .from('screens')
+        .update({ [columnName]: nextValue })
+        .eq('id', config.id);
+      if (error) throw error;
+      notify && notify.success && notify.success(`Groupe ${typeId} ${nextValue ? 'activé' : 'désactivé'}`);
+    } catch (e) {
+      console.error('Mise à jour du groupe échouée:', e);
+      // rollback
+      setGroupFlags((prev) => ({ ...prev, [typeId]: !nextValue }));
+      notify && notify.error && notify.error(`Erreur lors de la mise à jour du groupe ${typeId}`);
+    }
+  };
   
   // Fonction pour ajouter un nouvel effet
   const handleAddEffect = () => {
@@ -650,7 +717,7 @@ const AdminEffect = () => {
       dessin: [],
       univers: [],
       fluxcontext_1: [],  
-      fluxcontext2: []   
+      nano_banana: []   
     };
 
     const visibleEffects = [];
@@ -1114,7 +1181,26 @@ const handleSaveEdit = (updatedEffect) => {
             Effets {effectTypes.find(t => t.id === activeEffectType)?.label}
           </h3>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {/* Toggle innovant groupe d'effets */}
+            <motion.button
+              onClick={() => handleToggleGroup(activeEffectType, !groupFlags[activeEffectType])}
+              className={`relative inline-flex items-center px-3 py-2 rounded-full border transition-all ${groupFlags[activeEffectType] ? 'bg-green-600/10 border-green-500 text-green-700' : 'bg-gray-600/10 border-gray-400 text-gray-600'}`}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.98 }}
+              title={`Activer/désactiver le groupe ${activeEffectType}`}
+            >
+              <span className="mr-2">
+                {groupFlags[activeEffectType] ? '🟢' : '⚪'}
+              </span>
+              <span className="text-sm font-medium">
+                {groupFlags[activeEffectType] ? 'Groupe actif' : 'Groupe inactif'}
+              </span>
+              <span className={`ml-3 w-10 h-5 rounded-full relative ${groupFlags[activeEffectType] ? 'bg-green-500' : 'bg-gray-400'}`}>
+                <span className={`absolute top-0.5 ${groupFlags[activeEffectType] ? 'right-0.5' : 'left-0.5'} w-4 h-4 bg-white rounded-full transition-all`} />
+              </span>
+            </motion.button>
+
             <button
               onClick={handleAddEffect}
               className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-md flex items-center shadow-sm"

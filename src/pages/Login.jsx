@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Camera, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
+import { Camera, AlertCircle, Loader2, CheckCircle, Mail, Lock } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { notify } from '../../lib/notifications';
 import { Logger } from '../../lib/logger';
@@ -126,94 +126,103 @@ export default function Login() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="min-h-screen flex items-center justify-center bg-background text-text font-sans dark:bg-background-dark dark:text-text-dark"
+  className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-700 via-blue-500 to-emerald-400 font-sans"
     >
-      <div className="card p-8 w-full max-w-md">
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-primary-light bg-opacity-20 p-3 rounded-full mb-4">
-            <Camera className="w-8 h-8 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold text-text">SNAP BOOTH</h1>
-          <p className="text-text-secondary mt-2">
-            {isSignUp ? 'Créez votre compte' : 'Connectez-vous à votre borne photo'}
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="bg-danger bg-opacity-10 text-danger p-3 rounded-lg flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <span className="text-sm">{error}</span>
+      <div className="relative w-full max-w-md">
+        <div className="absolute -inset-1 bg-black bg-opacity-20 rounded-3xl blur-xl"></div>
+        <div className="relative z-10 bg-white bg-opacity-90 rounded-3xl shadow-2xl p-10 backdrop-blur-xl border border-purple-400">
+          <div className="flex flex-col items-center mb-8">
+            <div className="bg-gradient-to-tr from-purple-600 via-blue-400 to-emerald-300 p-4 rounded-full mb-4 shadow-lg animate-pulse">
+              <Camera className="w-10 h-10 text-white drop-shadow-lg" />
             </div>
-          )}
-
-          {successMessage && (
-            <div className="bg-success bg-opacity-10 text-success p-3 rounded-lg flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 flex-shrink-0" />
-              <span className="text-sm">{successMessage}</span>
-            </div>
-          )}
-
-          <div>
-            <label className="label" htmlFor="email">
-              Adresse email
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                useAuthStore.setState({ error: null });
-              }}
-              className="input mt-1 block w-full"
-              required
-            />
+            <h1 className="text-3xl font-extrabold text-purple-700 tracking-wide drop-shadow">SNAPBOOTH</h1>
+            <p className="text-lg text-gray-700 mt-2 font-medium">
+              {isSignUp ? 'Créez votre compte' : 'Connectez-vous à votre borne photo'}
+            </p>
           </div>
 
-          <div>
-            <label className="label" htmlFor="password">
-              Mot de passe
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                useAuthStore.setState({ error: null });
-              }}
-              className="input mt-1 block w-full"
-              required
-              minLength={6}
-            />
-            {isSignUp && (
-              <p className="mt-1 text-sm text-text-secondary">
-                Minimum 6 caractères
-              </p>
+          <form onSubmit={handleSubmit} className="space-y-7">
+            {error && (
+              <div className="bg-red-100 text-red-700 p-3 rounded-lg flex items-center gap-2 border border-red-300">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <span className="text-base font-medium">{error}</span>
+              </div>
             )}
-          </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="btn btn-primary w-full flex justify-center items-center gap-2 py-2 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {isLoading ? 'Chargement...' : isSignUp ? 'Créer un compte' : 'Se connecter'}
-          </button>
+            {successMessage && (
+              <div className="bg-green-100 text-green-700 p-3 rounded-lg flex items-center gap-2 border border-green-300">
+                <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                <span className="text-base font-medium">{successMessage}</span>
+              </div>
+            )}
 
-          <div className="text-center">
-            <button className="text-sm text-primary hover:text-primary-light transition-colors"
-              type="button"
-              onClick={switchMode}
+            <div className="relative">
+              <label className="block text-base font-semibold text-gray-800 mb-1" htmlFor="email">
+                Adresse email
+              </label>
+              <div className="flex items-center bg-gray-50 border-2 border-purple-400 rounded-xl px-4 py-3 focus-within:border-purple-600">
+                <Mail className="w-5 h-5 text-purple-400 mr-2" />
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    useAuthStore.setState({ error: null });
+                  }}
+                  className="bg-transparent outline-none w-full text-lg text-gray-900 placeholder-gray-400"
+                  placeholder="Votre adresse email"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="relative">
+              <label className="block text-base font-semibold text-gray-800 mb-1" htmlFor="password">
+                Mot de passe
+              </label>
+              <div className="flex items-center bg-gray-50 border-2 border-purple-400 rounded-xl px-4 py-3 focus-within:border-purple-600">
+                <Lock className="w-5 h-5 text-purple-400 mr-2" />
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    useAuthStore.setState({ error: null });
+                  }}
+                  className="bg-transparent outline-none w-full text-lg text-gray-900 placeholder-gray-400"
+                  placeholder="Votre mot de passe"
+                  required
+                  minLength={6}
+                />
+              </div>
+              {isSignUp && (
+                <p className="mt-1 text-sm text-gray-500">Minimum 6 caractères</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full flex justify-center items-center gap-2 py-3 px-4 rounded-xl font-bold text-lg text-white bg-gradient-to-r from-purple-700 via-blue-500 to-emerald-400 shadow-lg hover:scale-[1.03] hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSignUp
-                ? 'Déjà un compte ? Connectez-vous'
-                : "Pas de compte ? Créez-en un"}
+              {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
+              {isLoading ? 'Chargement...' : isSignUp ? 'Créer un compte' : 'Se connecter'}
             </button>
-          </div>
-        </form>
+
+            <div className="text-center mt-2">
+              <button className="text-base text-purple-600 hover:text-purple-800 font-semibold transition-colors underline underline-offset-2"
+                type="button"
+                onClick={switchMode}
+              >
+                {isSignUp
+                  ? 'Déjà un compte ? Connectez-vous'
+                  : "Pas de compte ? Créez-en un"}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </motion.div>
   );
