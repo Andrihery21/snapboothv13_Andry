@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Upload, Edit2, Plus, Save, AlertTriangle, Info, Camera } from 'lucide-react';
+import { Trash2, Upload, Edit2, Plus, Save, AlertTriangle, Info, Camera, RefreshCw } from 'lucide-react';
 import { useScreenConfig } from "../admin/screens/ScreenConfigProvider";
 import { notify } from '../../lib/notifications';
 import axios from 'axios';
@@ -24,6 +24,14 @@ const itemVariant = {
  * Composant de gestion des effets pour AdminEcran
  */
 const AdminEffect = () => {
+  // Rafraîchir la liste des effets
+  const handleRefreshEffects = async () => {
+    if (typeof refreshEffects === 'function') {
+      await refreshEffects();
+    } else {
+      window.location.reload(); // fallback si la fonction n'existe pas
+    }
+  };
   const { config, updateConfig, saveScreenConfig } = useScreenConfig();
   
   // Référence pour l'input file
@@ -494,7 +502,8 @@ const AdminEffect = () => {
   
   // Fonction pour ajouter un nouvel effet
   const handleAddEffect = () => {
-    setShowAddEffectPopup(true);
+  setShowAddEffectPopup(true);
+  setTimeout(() => handleRefreshEffects(), 500);
   };
   
   // Ajoutez la fonction handleSaveNewEffect
@@ -770,14 +779,13 @@ const handleSaveEdit = (updatedEffect) => {
         eff.id === updatedEffect.id ? updatedEffect : eff
       )
     };
-    
     setEffects(updatedEffects);
     updateConfig({
       ...config,
       effects: updatedEffects
     });
-    
     setEditingEffect(null);
+    handleRefreshEffects();
   } catch (error) {
     console.error('Erreur lors de la mise à jour:', error);
     notify('error', `Erreur lors de la mise à jour: ${error.message}`);
@@ -1157,20 +1165,20 @@ const handleSaveEdit = (updatedEffect) => {
       {/* Onglets de type d'effet */}
       <div className="bg-purple-50 dark:bg-gray-900 border-b border-purple-200 dark:border-gray-700 p-3">
         <div className="flex flex-wrap gap-2">
-          {effectTypes.map((type) => (
-            <button
-              key={type.id}
-              onClick={() => setActiveEffectType(type.id)}
-              className={`px-4 py-2 rounded-md flex items-center transition-all ${
-                activeEffectType === type.id 
-                ? 'bg-white text-purple-700 shadow-sm' 
-                : 'text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <span className="mr-2">{type.icon}</span>
-              {type.label}
-            </button>
-          ))}
+            {effectTypes.map((type) => (
+              <button
+                key={type.id}
+                onClick={() => setActiveEffectType(type.id)}
+                className={`px-4 py-2 rounded-md flex items-center transition-all ${
+                  activeEffectType === type.id 
+                  ? 'bg-white text-purple-700 shadow-sm' 
+                  : 'text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <span>{type.label}</span>
+                <span className="ml-2">{type.icon}</span>
+              </button>
+            ))}
         </div>
       </div>
       
@@ -1240,7 +1248,7 @@ const handleSaveEdit = (updatedEffect) => {
         
         {/* Tests des effets API */}
         <div className="mt-6 bg-gray-800 rounded-lg p-4 mb-6">
-          <h3 className="text-lg font-semibold mb-3">Tester les effets API</h3>
+          <h3 className="text-lg font-semibold mb-3 text-white">Tester les effets API</h3>
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Sélectionner une image pour tester
@@ -1301,7 +1309,12 @@ const handleSaveEdit = (updatedEffect) => {
         
         {/* Liste des effets existants */}
         <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-3">Effets disponibles</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-white">Effets disponibles</h3>
+            <button onClick={handleRefreshEffects} title="Rafraîchir la liste des effets" className="ml-2 p-2 rounded-full hover:bg-purple-100 transition-colors">
+              <RefreshCw className="w-5 h-5 text-purple-600" />
+            </button>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <AnimatePresence>
               {effects[activeEffectType] && effects[activeEffectType].map((effect, index) => (

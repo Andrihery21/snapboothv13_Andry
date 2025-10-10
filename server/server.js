@@ -15,6 +15,7 @@ import { tmpdir } from 'os';
 import { supabase } from './lib/supabase.js';
 // import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
+import { sendPhotoEmail, downloadImageAsBuffer } from './services/emailService.js';
 
 
 
@@ -798,6 +799,66 @@ app.post('/save-processed', async (req, res) => {
     }
 });
 
+// Route pour envoyer un email avec la photo
+app.post('/send-photo-email', async (req, res) => {
+    try {
+        const { email, photoUrl, recipientName } = req.body;
+
+        console.log('📧 Requête d\'envoi d\'email reçue');
+        console.log('Email:', email);
+        console.log('Photo URL:', photoUrl);
+        console.log('Recipient Name:', recipientName);
+
+        if (!email || !photoUrl) {
+            console.error('❌ Paramètres manquants');
+            return res.status(400).json({
+                success: false,
+                error: 'Email et URL de la photo sont requis'
+            });
+        }
+
+        // Validation de l'email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            console.error('❌ Email invalide:', email);
+            return res.status(400).json({
+                success: false,
+                error: 'Adresse email invalide'
+            });
+        }
+
+        console.log('📧 Envoi d\'email à:', email);
+        console.log('📷 URL de la photo:', photoUrl);
+
+        // Télécharger l'image pour l'attacher à l'email
+        let photoBuffer = null;
+        try {
+            console.log('⬇️ Téléchargement de l\'image...');
+            photoBuffer = await downloadImageAsBuffer(photoUrl);
+            console.log('✅ Image téléchargée, taille:', photoBuffer.length, 'octets');
+        } catch (error) {
+            console.warn('⚠️ Impossible de télécharger l\'image pour la pièce jointe:', error.message);
+            console.warn('L\'email sera envoyé avec l\'URL uniquement');
+            // On continue sans pièce jointe, juste avec l'URL dans le template
+        }
+
+        // Envoyer l'email via Brevo
+        console.log('📤 Appel du service d\'envoi d\'email...');
+        const result = await sendPhotoEmail(email, recipientName, photoUrl, photoBuffer);
+
+        console.log('✅ Email envoyé avec succès');
+        res.json(result);
+
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'envoi de l\'email:', error);
+        console.error('Stack:', error.stack);
+        res.status(500).json({
+            success: false,
+            error: error.error || error.message || 'Erreur lors de l\'envoi de l\'email'
+        });
+    }
+});
+
 // Servir les fichiers statiques
 app.use('/photos', express.static(path.join(__dirname, '../photos')));
 
@@ -811,6 +872,7 @@ app.get('/', (req, res) => {
             '/check-status': 'Vérifier le statut de l\'effet',
             '/save-capture': 'Sauvegarder une capture',
             '/save-processed': 'Sauvegarder une image traitée',
+            '/send-photo-email': 'Envoyer une photo par email',
             '/photos/*': 'Accéder aux images'
         }
     });

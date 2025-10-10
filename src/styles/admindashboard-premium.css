@@ -1,0 +1,37 @@
+/* Glassmorphism & premium UI styles for AdminDashboard */
+
+.glass-card {
+  background: rgba(245, 240, 255, 0.7);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 1.5rem;
+  border: 1px solid rgba(128, 90, 213, 0.18);
+}
+
+.animate-spin-slow {
+  animation: spin 3s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Premium button hover */
+.glass-card button:hover {
+  box-shadow: 0 4px 24px 0 rgba(128, 90, 213, 0.18);
+  transform: scale(1.07);
+}
+
+/* Sidebar shadow */
+
+.sidebar-glass {
+  background: rgba(245, 240, 255, 0.6);
+  box-shadow: 0 4px 32px 0 rgba(128, 90, 213, 0.12);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid rgba(128, 90, 213, 0.12);
+}
+body, .min-h-screen {
+  background: linear-gradient(135deg, #ede9fe 0%, #c7d2fe 50%, #e0e7ff 100%) !important;
+}

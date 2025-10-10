@@ -375,12 +375,13 @@ const AdminEcranContent = ({ eventId, onScreenChange }) => {
                 variants={cardVariants}
                 initial="notSelected"
                 animate={screenId === screen.id ? 'selected' : 'notSelected'}
-                whileHover={{ scale: 1.01 }}
-                className={`relative bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 cursor-pointer overflow-hidden ${
-                  screenId === screen.id 
-                    ? '' 
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-600'
-                }`}
+                whileHover={{ scale: 1.04 }}
+                className={`relative rounded-2xl p-5 cursor-pointer overflow-hidden border-2 transition-all duration-200
+                  ${screenId === screen.id
+                    ? 'border-8 border-white bg-gradient-to-br from-purple-200 via-white to-blue-200 dark:from-purple-900 dark:via-gray-900 dark:to-blue-900 shadow-[0_0_32px_12px_rgba(255,255,255,0.35)] animate-pulse'
+                    : 'bg-gradient-to-br from-purple-50 via-white to-blue-100 dark:from-gray-800 dark:via-gray-900 dark:to-gray-700 border-transparent hover:border-purple-300 dark:hover:border-purple-700 shadow-xl'}
+                `}
+                style={screenId === screen.id ? { boxShadow: '0 0 32px 12px rgba(255,255,255,0.35), 0 0 0 8px #fff' } : {}}
                 onClick={() => {
                   setScreenId(screen.id);
                   if (onScreenChange) onScreenChange(screen.id);
@@ -388,27 +389,30 @@ const AdminEcranContent = ({ eventId, onScreenChange }) => {
               >
                 {screenId === screen.id && (
                   <>
-                    <div className="absolute -top-2 -right-2 w-4 h-4 bg-[var(--screen-selected-color)] rounded-full ring-2 ring-white dark:ring-gray-800 z-10"></div>
-                    <div className="absolute inset-0 border-2 border-[var(--screen-selected-color)] rounded-lg pointer-events-none"></div>
+                    <div className="absolute -top-2 -right-2 w-4 h-4 bg-purple-500 rounded-full ring-2 ring-white dark:ring-gray-800 z-10 animate-pulse"></div>
+                    <div className="absolute inset-0 border-2 border-purple-500 rounded-2xl pointer-events-none"></div>
                   </>
                 )}
-                
-                <div className="flex justify-between items-start mb-3 relative z-0">
-                  <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-lg">{screen.name}</h3>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    screen.type === 'horizontal' 
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' 
-                      : 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
-                  }`}>
-                    {screen.ratio}
-                  </span>
+                <div className="flex flex-col items-start mb-2 relative z-0">
+                  <h3 className="font-bold text-purple-700 dark:text-purple-200 text-lg mb-1 flex items-center gap-2">
+                    <Monitor className="w-5 h-5 text-blue-400" />
+                    {screen.name}
+                  </h3>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className={`text-base px-3 py-1 rounded-full font-bold shadow ${
+                      screen.type === 'horizontal' 
+                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' 
+                        : 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                    }`}>
+                      {screen.ratio}
+                    </span>
+                    <span className="text-base font-mono px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 font-bold tracking-wide">{screen.rawData?.screen_key || 'screen_key...'}</span>
+                  </div>
                 </div>
-                
                 <div className="text-xs text-gray-600 dark:text-gray-300 mb-3 space-y-1">
                   <p className="font-medium">Type: <span className="font-normal capitalize">{screen.type}</span></p>
                   <p className="font-medium">Dernière mise à jour: <span className="font-normal">{screenConfigs[screen.id]?.lastUpdated || 'Chargement...'}</span></p>
                 </div>
-                
                 <div className="text-xs text-gray-600 dark:text-gray-300 mb-3 space-y-1 border-t border-gray-200 dark:border-gray-600 pt-2">
                   <p className="font-medium">Test: <span className="font-normal">{screenConfigs[screen.id]?.details?.test || 'Non spécifié'}</span></p>
                   <p className="font-medium">Package: <span className="font-normal">{screenConfigs[screen.id]?.details?.package || 'Non spécifié'}</span></p>

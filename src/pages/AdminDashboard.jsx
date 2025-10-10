@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import '../styles/admindashboard-premium.css';
 import { useNavigate, useParams } from 'react-router-dom';
 import ShareManager from '../components/admin/ShareManager';
 import SharingSettings from '../components/admin/screens/SharingSettings';
@@ -21,6 +22,7 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('Ecran Univers');
   const [activeSection, setActiveSection] = useState('ecran'); // Définir 'ecran' comme section active par défaut
   const [textScreenId, setTextScreenId] = useState('horizontal1'); // Pour sélectionner l'écran pour les textes
+  const [shareTab, setShareTab] = useState('parametres'); // Onglet actif pour la section partage
   
   // Récupérer l'ID de l'événement depuis l'URL
   const { eventId } = useParams();
@@ -107,44 +109,68 @@ const AdminDashboard = () => {
   };
   
   return (
-    <div className="bg-background text-text font-sans min-h-screen dark:bg-background-dark dark:text-text-dark">
-      {/* Header avec logo */}
-      <header className="bg-white shadow-sm py-3 px-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center">
-            <button
-              onClick={() => navigate('/admin/photos')} 
-              className="mr-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
-              aria-label="Retour à la grille de photos"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-800">
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-              </svg>
-            </button>
-            <h1 className="text-xl font-bold text-purple-800">SnapBooth Studio</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span className="text-gray-600">Admin</span>
-            <div className="w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center text-white">
-              A
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center space-x-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-md transition-colors">
-              <LogOut className="w-5 h-5" />
-              <span>Déconnexion</span>
-             </button>
-          </div>
+    <div className="min-h-screen font-sans bg-gradient-to-br from-purple-100 via-white to-blue-100 relative">
+      {/* Sidebar flottante */}
+      <aside className="fixed top-0 left-0 h-full w-20 bg-white/60 backdrop-blur-lg shadow-xl flex flex-col items-center py-8 z-30 border-r border-purple-100">
+        <div className="mb-8">
+          <img src="/public/favicon.svg" alt="Logo" className="w-10 h-10 rounded-xl shadow-lg" />
+        </div>
+        <nav className="flex flex-col gap-6 mt-4">
+          <button className={`transition-all hover:scale-110 ${activeSection==='ecran'?'text-purple-700':'text-gray-400'}`} onClick={()=>setActiveSection('ecran')}>
+            <span className="text-2xl">🖥️</span>
+          </button>
+          <button className={`transition-all hover:scale-110 ${activeSection==='textes'?'text-purple-700':'text-gray-400'}`} onClick={()=>setActiveSection('textes')}>
+            <span className="text-2xl">📝</span>
+          </button>
+          <button className={`transition-all hover:scale-110 ${activeSection==='partage'?'text-purple-700':'text-gray-400'}`} onClick={()=>setActiveSection('partage')}>
+            <span className="text-2xl">🔗</span>
+          </button>
+          <button className={`transition-all hover:scale-110 ${activeSection==='impression'?'text-purple-700':'text-gray-400'}`} onClick={()=>setActiveSection('impression')}>
+            <span className="text-2xl">🖨️</span>
+          </button>
+        </nav>
+        <div className="mt-auto mb-4">
+          <button onClick={handleLogout} className="flex flex-col items-center text-red-500 hover:text-red-700 transition-all">
+            <LogOut className="w-7 h-7 mb-1" />
+            <span className="text-xs">Déconnexion</span>
+          </button>
+        </div>
+      </aside>
+      {/* Header modernisé */}
+      <header className="ml-20 bg-white/70 backdrop-blur-lg shadow-lg py-4 px-10 flex items-center justify-between border-b border-purple-100">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/admin/photos')} 
+            className="p-2 rounded-full bg-purple-50 hover:bg-purple-200 transition-colors shadow"
+            aria-label="Retour à la grille de photos"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-800">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+          </button>
+          <h1 className="text-2xl font-extrabold text-purple-700 tracking-tight drop-shadow">SnapBooth Studio</h1>
+        </div>
+        <div className="flex items-center gap-6">
+          <span className="text-lg font-semibold text-gray-700 bg-white/60 px-3 py-1 rounded-xl shadow">Admin</span>
+          <button
+            onClick={handleLogout}
+            className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-blue-400 flex items-center justify-center text-white font-bold shadow-lg border-2 border-white hover:from-purple-700 hover:to-blue-500 transition-all duration-300 hover:scale-110 cursor-pointer group relative"
+            title="Déconnexion"
+            aria-label="Déconnexion"
+          >
+            <span className="group-hover:hidden">A</span>
+            <LogOut className="w-5 h-5 hidden group-hover:block" />
+          </button>
         </div>
       </header>
       
       {/* Affichage de l'événement sélectionné */}
       <div className="max-w-5xl mx-auto px-6 mt-6">
-        <div className="bg-white rounded-lg shadow-md p-4">
+  <div className="glass-card rounded-3xl shadow-2xl border border-purple-100 p-8">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-purple-600" />
-              <h2 className="text-lg font-semibold text-gray-800">Événement sélectionné</h2>
+            <div className="flex items-center gap-4">
+              <Calendar className="h-8 w-8 text-purple-600 drop-shadow-lg animate-spin-slow" />
+              <h2 className="text-2xl font-extrabold text-purple-700 tracking-tight">Événement sélectionné</h2>
             </div>
             <button 
               onClick={handleBackToEventSelection}
@@ -161,21 +187,17 @@ const AdminDashboard = () => {
           ) : eventDetails ? (
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-medium text-gray-900">{eventDetails.name}</h3>
-                <div className="text-sm text-gray-500 mt-1">
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-1" />
-                    <span>{formatDate(eventDetails.date)}</span>
-                  </div>
+                <h3 className="text-2xl font-bold text-blue-900 mb-2 tracking-tight drop-shadow">{eventDetails.name}</h3>
+                <div className="text-base text-gray-600 mt-1 flex items-center gap-2">
+                  <Calendar className="h-5 w-5 mr-2 text-purple-400" />
+                  <span className="font-semibold">{formatDate(eventDetails.date)}</span>
                   {eventDetails.location && (
-                    <div className="mt-1">
-                      <span>📍 {eventDetails.location}</span>
-                    </div>
+                    <span className="ml-4 px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-medium shadow">📍 {eventDetails.location}</span>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="bg-purple-100 text-purple-800 text-sm font-semibold px-3 py-1 rounded-full">
+              <div className="flex items-center gap-4">
+                <span className="bg-gradient-to-r from-purple-400 to-blue-300 text-white text-lg font-bold px-5 py-2 rounded-full shadow-lg border border-white/40">
                   {eventDetails.photos_count || 0} photos
                 </span>
               </div>
@@ -195,33 +217,39 @@ const AdminDashboard = () => {
       </div>
 
       {/* Boutons de sections */}
-      <div className="max-w-6xl mx-auto px-6 mt-4 mb-4 bg-white p-4 rounded-lg shadow-md">
-        <h3 className="text-lg font-semibold text-gray-800 mb-3">Sections admin</h3>
-        <div className="flex flex-wrap gap-3 mb-4">
-          <button
-            className={`px-4 py-2 rounded-md ${activeSection === 'ecran' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-800'} hover:bg-purple-700 hover:text-white transition-colors`}
-            onClick={() => setActiveSection('ecran')}
-          >
-            Configuration des écrans
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md ${activeSection === 'textes' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-800'} hover:bg-purple-700 hover:text-white transition-colors`}
-            onClick={() => setActiveSection('textes')}
-          >
-            Textes personnalisés
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md ${activeSection === 'partage' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-800'} hover:bg-purple-700 hover:text-white transition-colors`}
-            onClick={() => setActiveSection('partage')}
-          >
-            Partage & QR Code
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md ${activeSection === 'impression' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-800'} hover:bg-purple-700 hover:text-white transition-colors`}
-            onClick={() => setActiveSection('impression')}
-          >
-            Impression
-          </button>
+      <div className="max-w-6xl mx-auto px-6 mt-4 mb-4">
+        <div className="glass-card p-6 rounded-3xl shadow-2xl border border-purple-100">
+          <h3 className="text-2xl font-bold text-purple-700 mb-6 tracking-tight">Sections admin</h3>
+          <div className="flex flex-wrap gap-4 mb-4">
+            <button
+              className={`px-6 py-3 rounded-xl flex items-center gap-3 text-lg font-semibold transition-all duration-200 shadow-lg backdrop-blur-lg border border-purple-200 ${activeSection === 'ecran' ? 'bg-gradient-to-r from-purple-500 to-blue-400 text-white scale-105' : 'bg-white/60 text-purple-700 hover:bg-purple-100 hover:scale-105'}`}
+              onClick={() => setActiveSection('ecran')}
+            >
+              <span className="text-2xl animate-bounce">🖥️</span>
+              <span>Configuration des écrans</span>
+            </button>
+            <button
+              className={`px-6 py-3 rounded-xl flex items-center gap-3 text-lg font-semibold transition-all duration-200 shadow-lg backdrop-blur-lg border border-purple-200 ${activeSection === 'textes' ? 'bg-gradient-to-r from-purple-500 to-blue-400 text-white scale-105' : 'bg-white/60 text-purple-700 hover:bg-purple-100 hover:scale-105'}`}
+              onClick={() => setActiveSection('textes')}
+            >
+              <span className="text-2xl animate-bounce">📝</span>
+              <span>Textes personnalisés</span>
+            </button>
+            <button
+              className={`px-6 py-3 rounded-xl flex items-center gap-3 text-lg font-semibold transition-all duration-200 shadow-lg backdrop-blur-lg border border-purple-200 ${activeSection === 'partage' ? 'bg-gradient-to-r from-purple-500 to-blue-400 text-white scale-105' : 'bg-white/60 text-purple-700 hover:bg-purple-100 hover:scale-105'}`}
+              onClick={() => setActiveSection('partage')}
+            >
+              <span className="text-2xl animate-bounce">🔗</span>
+              <span>Partage & QR Code</span>
+            </button>
+            <button
+              className={`px-6 py-3 rounded-xl flex items-center gap-3 text-lg font-semibold transition-all duration-200 shadow-lg backdrop-blur-lg border border-purple-200 ${activeSection === 'impression' ? 'bg-gradient-to-r from-purple-500 to-blue-400 text-white scale-105' : 'bg-white/60 text-purple-700 hover:bg-purple-100 hover:scale-105'}`}
+              onClick={() => setActiveSection('impression')}
+            >
+              <span className="text-2xl animate-bounce">🖨️</span>
+              <span>Impression</span>
+            </button>
+          </div>
         </div>
         
         <h3 className="text-lg font-semibold text-gray-800 mb-3">Lancement rapide</h3>
@@ -309,24 +337,53 @@ const AdminDashboard = () => {
                 <h2 className="text-xl font-semibold text-purple-800 mb-4 flex items-center">
                   <Share2 className="mr-2" size={22} /> Configuration du partage
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                    <h3 className="text-lg font-medium text-gray-800 mb-3">Paramètres de partage</h3>
-                    <ScreenConfigProvider screenId={selectedScreen} eventId={selectedEventId}>
-                      <SharingSettings />
-                    </ScreenConfigProvider>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                    <h3 className="text-lg font-medium text-gray-800 mb-3">Statistiques de partage</h3>
-                    <ShareManager />
-                  </div>
+                
+                {/* Menu horizontal avec onglets */}
+                <div className="flex gap-2 mb-6 border-b border-gray-200">
+                  <button
+                    onClick={() => setShareTab('parametres')}
+                    className={`px-6 py-3 font-semibold transition-all duration-200 border-b-2 ${
+                      shareTab === 'parametres'
+                        ? 'border-purple-600 text-purple-700 bg-purple-50'
+                        : 'border-transparent text-gray-600 hover:text-purple-600 hover:bg-purple-50/50'
+                    }`}
+                  >
+                    Paramètres de partage
+                  </button>
+                  <button
+                    onClick={() => setShareTab('statistiques')}
+                    className={`px-6 py-3 font-semibold transition-all duration-200 border-b-2 ${
+                      shareTab === 'statistiques'
+                        ? 'border-purple-600 text-purple-700 bg-purple-50'
+                        : 'border-transparent text-gray-600 hover:text-purple-600 hover:bg-purple-50/50'
+                    }`}
+                  >
+                    Statistiques de partage
+                  </button>
+                </div>
+
+                {/* Contenu des onglets */}
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                  {shareTab === 'parametres' ? (
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-800 mb-4">Paramètres de partage</h3>
+                      <ScreenConfigProvider screenId={selectedScreen} eventId={selectedEventId}>
+                        <SharingSettings />
+                      </ScreenConfigProvider>
+                    </div>
+                  ) : (
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-800 mb-4">Statistiques de partage</h3>
+                      <ShareManager />
+                    </div>
+                  )}
                 </div>
               </div>
               {/* Barre d'état en bas */}
               <div className="mt-6 pt-4 border-t border-gray-200 flex justify-between items-center text-sm text-gray-500">
                 <div>Version 2.0</div>
                 <div>Format: 16:9</div>
-                <div>Mode: Partage</div>
+                <div>Mode: Partage - {shareTab === 'parametres' ? 'Paramètres' : 'Statistiques'}</div>
               </div>
             </div>
           ) : activeSection === 'impression' ? (
