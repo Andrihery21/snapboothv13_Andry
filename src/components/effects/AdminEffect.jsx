@@ -120,12 +120,32 @@ const AdminEffect = () => {
               ? screenRow.effect_api.map((v) => Number(v)).filter((v) => !Number.isNaN(v))
               : []
           );
+          
+          console.log('[AdminEffect] config.id:', config?.id);
+          console.log('[AdminEffect] allowedIds:', Array.from(allowedIds));
 
           const { data, error } = await supabase
             .from('effects_api')
             .select('*');
           
           if (error) throw error;
+          
+          console.log('[AdminEffect] Tous les effets récupérés:', data?.length);
+          
+          // Récupérer tous les paramètres depuis params_array
+          const { data: allParams, error: paramsError } = await supabase
+            .from('params_array')
+            .select('*');
+          
+          if (paramsError) console.warn('Erreur lors du chargement des paramètres:', paramsError);
+          
+          // Créer un map des paramètres par ID pour un accès rapide
+          const paramsMap = {};
+          if (allParams) {
+            allParams.forEach(param => {
+              paramsMap[param.id] = { name: param.name, value: param.value };
+            });
+          }
           
           // Organiser les effets par type
           const organizedEffects = {
@@ -140,11 +160,27 @@ const AdminEffect = () => {
         // Garder trace des effets visibles
         const visibleEffects = [];
           
+          let totalProcessed = 0;
+          let totalExcluded = 0;
+          
           data.forEach(effect => {
             const effectIdNum = Number(effect.id);
-            if (Number.isNaN(effectIdNum)) return;
-            if (!allowedIds.has(effectIdNum)) return; // filtrer par écran sélectionné
+            if (Number.isNaN(effectIdNum)) {
+              totalExcluded++;
+              return;
+            }
+            if (!allowedIds.has(effectIdNum)) {
+              totalExcluded++;
+              return; // filtrer par écran sélectionné
+            }
             if (effect.activeEffectType && organizedEffects[effect.activeEffectType]) {
+              totalProcessed++;
+              
+              // Convertir les IDs de paramètres en objets avec nom et valeur
+              const paramsArray = Array.isArray(effect.paramsArray) 
+                ? effect.paramsArray.map(paramId => paramsMap[paramId]).filter(Boolean)
+                : [];
+              
               organizedEffects[effect.activeEffectType].push({
                 id: effect.id.toString(),
                 name: effect.name,
@@ -152,7 +188,7 @@ const AdminEffect = () => {
                 apiName: effect.apiName,
                 apiKey: effect.apiKey,
                 endpoint: effect.endpoint,
-                paramsArray: effect.paramsArray || [],
+                paramsArray: paramsArray,
                 is_visible: effect.is_visible || false
               });
               if (effect.is_visible) {
@@ -160,6 +196,17 @@ const AdminEffect = () => {
               }
             }
           });
+          
+          console.log('[AdminEffect] Effets traités:', totalProcessed);
+          console.log('[AdminEffect] Effets exclus:', totalExcluded);
+          
+          console.log('[AdminEffect] ===== RÉSULTAT ORGANISÉ =====');
+          console.log('[AdminEffect] organizedEffects:', organizedEffects);
+          console.log('[AdminEffect] Cartoon:', organizedEffects.cartoon?.length || 0);
+          console.log('[AdminEffect] Caricature:', organizedEffects.caricature?.length || 0);
+          console.log('[AdminEffect] Dessin:', organizedEffects.dessin?.length || 0);
+          console.log('[AdminEffect] Univers:', organizedEffects.univers?.length || 0);
+          console.log('[AdminEffect] FluxContext1:', organizedEffects.fluxcontext_1?.length || 0);
           
           setEffects(organizedEffects);
           setSelectedEffects(visibleEffects);
@@ -720,6 +767,21 @@ const AdminEffect = () => {
     
     if (error) throw error;
     
+    // Récupérer tous les paramètres depuis params_array
+    const { data: allParams, error: paramsError } = await supabase
+      .from('params_array')
+      .select('*');
+    
+    if (paramsError) console.warn('Erreur lors du chargement des paramètres:', paramsError);
+    
+    // Créer un map des paramètres par ID pour un accès rapide
+    const paramsMap = {};
+    if (allParams) {
+      allParams.forEach(param => {
+        paramsMap[param.id] = { name: param.name, value: param.value };
+      });
+    }
+    
     const organizedEffects = {
       cartoon: [],
       caricature: [],
@@ -736,6 +798,11 @@ const AdminEffect = () => {
       if (Number.isNaN(effectIdNum)) return;
       if (!allowedIds.has(effectIdNum)) return; // filtrer par écran sélectionné
       if (effect.activeEffectType && organizedEffects[effect.activeEffectType]) {
+        // Convertir les IDs de paramètres en objets avec nom et valeur
+        const paramsArray = Array.isArray(effect.paramsArray) 
+          ? effect.paramsArray.map(paramId => paramsMap[paramId]).filter(Boolean)
+          : [];
+        
         organizedEffects[effect.activeEffectType].push({
           id: effect.id.toString(),
           name: effect.name,
@@ -743,7 +810,7 @@ const AdminEffect = () => {
           apiName: effect.apiName,
           apiKey: effect.apiKey,
           endpoint: effect.endpoint,
-          paramsArray: effect.paramsArray || [],
+          paramsArray: paramsArray,
           is_visible: effect.is_visible || false
         });
         if (effect.is_visible) {

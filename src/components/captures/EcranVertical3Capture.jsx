@@ -272,15 +272,84 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
   const { getText } = useTextContent();
   const [hovered, setHovered] = useState(null);
   const [inspecting, setInspecting] = useState(null);
+  const [effectCounts, setEffectCounts] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  // Charger le nombre d'effets par groupe depuis Supabase
+  useEffect(() => {
+    const loadEffectCounts = async () => {
+      try {
+        setLoading(true);
+        
+        if (!config?.id) {
+          setLoading(false);
+          return;
+        }
+
+        // Récupérer les IDs autorisés depuis la config
+        const { data: screenRow, error: screenError } = await supabase
+          .from('screens')
+          .select('effect_api')
+          .eq('id', config?.id)
+          .single();
+
+        if (screenError) {
+          console.error('[MagicalEffectSelection] Erreur chargement screen:', screenError);
+          setLoading(false);
+          return;
+        }
+
+        const allowedIds = new Set(
+          Array.isArray(screenRow?.effect_api)
+            ? screenRow.effect_api.map((v) => Number(v)).filter((v) => !Number.isNaN(v))
+            : []
+        );
+
+        // Charger tous les effets
+        const { data: effectsData, error: effectsError } = await supabase
+          .from('effects_api')
+          .select('id, activeEffectType, is_visible');
+
+        if (effectsError) {
+          console.error('[MagicalEffectSelection] Erreur chargement effets:', effectsError);
+          setLoading(false);
+          return;
+        }
+
+        // Compter les effets par groupe
+        const counts = {};
+        (effectsData || []).forEach(effect => {
+          const effectIdNum = Number(effect.id);
+          if (Number.isNaN(effectIdNum)) return;
+          if (!allowedIds.has(effectIdNum)) return;
+          if (!effect.is_visible) return;
+          
+          const groupId = effect.activeEffectType;
+          if (groupId) {
+            counts[groupId] = (counts[groupId] || 0) + 1;
+          }
+        });
+
+        console.log('[MagicalEffectSelection] Compteur d\'effets par groupe:', counts);
+        setEffectCounts(counts);
+        setLoading(false);
+      } catch (error) {
+        console.error('[MagicalEffectSelection] Erreur:', error);
+        setLoading(false);
+      }
+    };
+
+    loadEffectCounts();
+  }, [config?.id]);
 
   // Déterminer les groupes actifs depuis Supabase (via config.screen flags)
   const screenFlags = {
-  cartoon: config?.cartoon,
-  caricature: config?.caricature,
-  dessin: config?.dessin,
-  univers: config?.univers,
-  fluxcontext_1: config?.fluxcontext_1,
-  nano_banana: config?.nano_banana,
+    cartoon: config?.cartoon,
+    caricature: config?.caricature,
+    dessin: config?.dessin,
+    univers: config?.univers,
+    fluxcontext_1: config?.fluxcontext_1,
+    nano_banana: config?.nano_banana,
   };
 
   const activeGroupIds = new Set(
@@ -289,27 +358,28 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
       .map(([key]) => key)
   );
 
-  // Filtrer les effets magiques selon les groupes actifs (pas de fallback)
+  // Filtrer les effets magiques selon les groupes actifs
   const groupsFilteredByFlags = MAGICAL_EFFECTS.filter(effect => activeGroupIds.has(effect.id));
 
   const availableEffects = config?.magicalEffect
     ? groupsFilteredByFlags.filter(effect => effect.id === config.magicalEffect)
     : groupsFilteredByFlags;
 
+
   return (
-    <motion.div className="fixed inset-0 z-50 bg-gradient-to-b from-black/90 to-indigo-900/90 flex flex-col items-center justify-center p-4"
+    <motion.div className="fixed inset-0 z-50 bg-gradient-to-b from-black/90 to-indigo-900/90 flex flex-col items-center justify-center p-6 portrait:p-8 portrait:lg:p-12"
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-      <div className="max-w-6xl w-full rounded-2xl p-6 relative overflow-hidden"
+      <div className="max-w-6xl portrait:max-w-7xl w-full rounded-2xl p-6 portrait:p-8 portrait:lg:p-12 relative overflow-hidden"
            style={{ background: 'radial-gradient(1200px 600px at 10% 10%, rgba(255,255,255,0.08), transparent), radial-gradient(800px 400px at 90% 30%, rgba(59,130,246,0.15), transparent)' }}>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 portrait:mb-8 portrait:lg:mb-12">
           <div>
-            <h2 className="text-3xl font-bold text-white">{getText('mode_magic_label', 'Mode Magique')}</h2>
-            <p className="text-white/70">{getText('mode_magic_sub', "Transformez votre photo avec l'IA")}</p>
+            <h2 className="text-3xl portrait:text-4xl portrait:lg:text-5xl font-bold text-white">{getText('mode_magic_label', 'Mode Magique')}</h2>
+            <p className="text-base portrait:text-lg portrait:lg:text-xl text-white/70 mt-1 portrait:mt-2">{getText('mode_magic_sub', "Transformez votre photo avec l'IA")}</p>
           </div>
-          <button onClick={onCancel} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl">{getText('button_back', 'Retour')}</button>
+          <button onClick={onCancel} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 portrait:px-6 portrait:py-3 portrait:lg:px-8 portrait:lg:py-4 rounded-xl text-base portrait:text-lg portrait:lg:text-xl">{getText('button_back', 'Retour')}</button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 max-h-[70vh] overflow-y-auto pr-1">
+        <div className="grid grid-cols-2 portrait:grid-cols-2 portrait:lg:grid-cols-3 gap-4 portrait:gap-6 portrait:lg:gap-8 max-h-[70vh] portrait:max-h-[72vh] overflow-y-auto pr-2">
           {/* Option Sans filtre */}
           <motion.button
             key="no-filter"
@@ -321,12 +391,12 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
             whileTap={{ scale: 0.98 }}
           >
             <div className="relative">
-              <div className="w-full h-44 bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
+              <div className="w-full h-40 portrait:h-52 portrait:lg:h-72 bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
                 <div className="text-center">
-                  <svg className="w-12 h-12 mx-auto text-gray-700 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-12 h-12 portrait:w-16 portrait:h-16 portrait:lg:w-24 portrait:lg:h-24 mx-auto text-gray-700 mb-2 portrait:mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <p className="text-gray-700 text-xs">Original</p>
+                  <p className="text-gray-700 text-sm portrait:text-base portrait:lg:text-xl font-medium">Original</p>
                 </div>
               </div>
               <motion.div
@@ -335,42 +405,49 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
                 transition={{ duration: 0.3 }}
               />
             </div>
-            <div className="p-3 text-left">
-              <p className="text-white font-medium truncate">{getText('no_filter', 'Sans filtre')}</p>
-              <p className="text-white/60 text-xs">{getText('tap_to_apply', 'Touchez pour appliquer')}</p>
+            <div className="p-3 portrait:p-4 portrait:lg:p-6 text-left">
+              <p className="text-white font-medium truncate text-base portrait:text-lg portrait:lg:text-2xl">{getText('no_filter', 'Sans filtre')}</p>
+              <p className="text-white/60 text-sm portrait:text-base portrait:lg:text-lg">{getText('tap_to_apply', 'Touchez pour appliquer')}</p>
             </div>
             <motion.div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }}
               animate={hovered === 'no-filter' ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25)' } : {} } />
           </motion.button>
 
-          {availableEffects.map((effect) => (
-            <motion.button key={effect.id}
-              className="group relative bg-white/5 backdrop-blur rounded-2xl overflow-hidden cursor-pointer border border-white/10"
-              onMouseEnter={() => setHovered(effect.id)}
-              onMouseLeave={() => setHovered(null)}
-              onClick={() => onSelectEffect(effect.id)}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className="relative">
-                <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-44 object-cover" />
-                <motion.div
-                  className="absolute inset-0"
-                  animate={hovered === effect.id ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(59,130,246,0.18), transparent)' } : { background: 'transparent' }}
-                  transition={{ duration: 0.3 }}
-                />
-                <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button type="button" onClick={(e) => { e.stopPropagation(); setInspecting(effect); }} className="bg-black/60 text-white text-xs px-3 py-1 rounded-full">{getText('details', 'Détails')}</button>
+          {availableEffects.map((effect) => {
+            const count = effectCounts[effect.id] || 0;
+            return (
+              <motion.button key={effect.id}
+                className="group relative bg-white/5 backdrop-blur rounded-2xl overflow-hidden cursor-pointer border border-white/10"
+                onMouseEnter={() => setHovered(effect.id)}
+                onMouseLeave={() => setHovered(null)}
+                onClick={() => onSelectEffect(effect.id)}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className="relative">
+                  <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-40 portrait:h-52 portrait:lg:h-72 object-cover" />
+                  <motion.div
+                    className="absolute inset-0"
+                    animate={hovered === effect.id ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(59,130,246,0.18), transparent)' } : { background: 'transparent' }}
+                    transition={{ duration: 0.3 }}
+                  />
+                  {/* Badge compteur d'effets */}
+                  <div className="absolute top-2 portrait:top-3 portrait:lg:top-4 left-2 portrait:left-3 portrait:lg:left-4 bg-purple-600 text-white text-sm portrait:text-base portrait:lg:text-xl font-bold px-3 py-1 portrait:px-4 portrait:py-2 portrait:lg:px-5 portrait:lg:py-3 rounded-full shadow-lg">
+                    {count} {count > 1 ? getText('effects', 'effets') : getText('effect', 'effet')}
+                  </div>
+                  <div className="absolute top-2 portrait:top-3 portrait:lg:top-4 right-2 portrait:right-3 portrait:lg:right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setInspecting(effect); }} className="bg-black/60 text-white text-sm portrait:text-base portrait:lg:text-lg px-3 py-1 portrait:px-4 portrait:py-2 portrait:lg:px-5 portrait:lg:py-3 rounded-full">{getText('details', 'Détails')}</button>
+                  </div>
                 </div>
-              </div>
-              <div className="p-3 text-left">
-                <p className="text-white font-medium truncate">{effect.label || effect.id}</p>
-                <p className="text-white/60 text-xs">{getText('tap_to_apply', 'Touchez pour appliquer')}</p>
-              </div>
-              <motion.div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }}
-                animate={hovered === effect.id ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25)' } : {} } />
-            </motion.button>
-          ))}
+                <div className="p-3 portrait:p-4 portrait:lg:p-6 text-left">
+                  <p className="text-white font-medium truncate text-base portrait:text-lg portrait:lg:text-2xl">{effect.label || effect.id}</p>
+                  <p className="text-white/60 text-sm portrait:text-base portrait:lg:text-lg">{getText('tap_to_apply', 'Touchez pour appliquer')}</p>
+                </div>
+                <motion.div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }}
+                  animate={hovered === effect.id ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25)' } : {} } />
+              </motion.button>
+            );
+          })}
         </div>
       </div>
 
@@ -382,8 +459,8 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
               <div className="p-4 flex items-center justify-between">
                 <h3 className="text-white text-lg font-semibold">{inspecting.label || inspecting.id}</h3>
                 <div className="flex gap-2">
-                  <button className="bg:white/10 text-white px-4 py-2 rounded-xl" onClick={() => setInspecting(null)}>{getText('close', 'Fermer')}</button>
-                  <button className="bg-indigo-600 hover:bg-indigo-700 text:white px-4 py-2 rounded-xl" onClick={() => { onSelectEffect(inspecting.id); setInspecting(null); }}>{getText('use', 'Utiliser')}</button>
+                  <button className="bg-white/10 text-white px-4 py-2 rounded-xl" onClick={() => setInspecting(null)}>{getText('close', 'Fermer')}</button>
+                  <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl" onClick={() => { onSelectEffect(inspecting.id); setInspecting(null); }}>{getText('use', 'Utiliser')}</button>
                 </div>
               </div>
               <div className="bg-black/60 flex items-center justify-center">
@@ -482,101 +559,112 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
   useEffect(() => {
     const filterOptionsForScreen = async () => {
       try {
-        const options = EFFECTOPTION[effectId] || [];
-
         if (!config?.id) {
           setFilteredOptions([]);
           return;
         }
       
-         console.log("itito les ny filtrage ah", config.allowedEffectIds);
-        // Utiliser les IDs autorisés depuis la config (même principe que countdown_duration)
-        const allowedIds = Array.isArray(config.allowedEffectIds) ? config.allowedEffectIds : [];
-        console.log('[Style] allowedEffectIds', allowedIds);
-        if (allowedIds.length === 0) {
+        // Récupérer la liste d'IDs d'effets liés à l'écran courant (comme AdminEffect)
+        const { data: screenRow, error: screenError } = await supabase
+          .from('screens')
+          .select('effect_api')
+          .eq('id', config?.id)
+          .single();
+
+        if (screenError) {
+          console.error('[Style] Erreur chargement screen:', screenError);
           setFilteredOptions([]);
           return;
         }
 
-        // Charger les effets autorisés
+        const allowedIds = new Set(
+          Array.isArray(screenRow?.effect_api)
+            ? screenRow.effect_api.map((v) => Number(v)).filter((v) => !Number.isNaN(v))
+            : []
+        );
+        
+        console.log('[Style] config.id:', config?.id);
+        console.log('[Style] allowedIds:', Array.from(allowedIds));
+        
+        if (allowedIds.size === 0) {
+          console.log('[Style] Aucun effet autorisé');
+          setFilteredOptions([]);
+          return;
+        }
+
+        // Charger TOUS les effets depuis effects_api (comme AdminEffect)
         const { data: effectsData, error: effectsError } = await supabase
           .from('effects_api')
-          .select('id, activeEffectType, paramsArray, name, preview, is_visible')
-          .in('id', allowedIds)
-          .eq('is_visible', true);
+          .select('*');
+          
         if (effectsError) {
-          console.error('Chargement effects_api échoué:', effectsError.message);
+          console.error('[Style] Chargement effects_api échoué:', effectsError.message);
           setFilteredOptions([]);
           return;
         }
-        console.log('[Style] effectsData', effectsData);
+        
+        console.log('[Style] Tous les effets récupérés:', effectsData?.length);
 
-        // Restreindre au type d'effet magique sélectionné
-        const matchingType = (effectsData || [])
-          .filter((e) => e.activeEffectType === effectId)
-          .filter((e) => e.is_visible === true);
-        console.log('[Style] effectId', effectId, 'matchingType', matchingType);
-
-        // Résoudre paramsArray lorsque ce sont des IDs
-        const allParamIds = matchingType
-          .flatMap((e) => (Array.isArray(e.paramsArray) ? e.paramsArray : []))
-          .filter((id) => typeof id === 'number' || (typeof id === 'string' && id.trim() !== ''));
-
-        const idToParam = new Map();
-        if (allParamIds.length > 0) {
-          const { data: paramsRows } = await supabase
-            .from('params_array')
-            .select('id, name, value')
-            .in('id', allParamIds);
-          (paramsRows || []).forEach((row) => {
-            idToParam.set(row.id, { name: row.name, value: row.value });
-          });
-        }
-        console.log('[Style] resolved params', Array.from(idToParam.entries()));
-
-        // Extraire les valeurs admises pour type/index/textPrompt (AILab/LightX)
-        const allowedValues = new Set();
-        // Et aussi la liste des noms autorisés lorsque paramsArray est vide (cas LightX/Supabase)
-        const allowedNames = new Set((matchingType || []).map((e) => e.name).filter(Boolean));
-        matchingType.forEach((e) => {
-          const arr = Array.isArray(e.paramsArray) ? e.paramsArray : [];
-          arr.forEach((p) => {
-            let name, value;
-            if (p && typeof p === 'object') {
-              // Support multiple shapes: {name, value}, {key, value}, or { index: 0 } / { type: 'x' }
-              name = p.name ?? p.key;
-              value = p.value;
-              if ((name === undefined || value === undefined) && Object.keys(p).length === 1) {
-                const onlyKey = Object.keys(p)[0];
-                name = onlyKey;
-                value = p[onlyKey];
-              }
-            } else if (idToParam.size > 0 && (typeof p === 'number' || typeof p === 'string')) {
-              const resolved = idToParam.get(typeof p === 'string' ? Number(p) : p);
-              if (resolved) {
-                name = resolved.name;
-                value = resolved.value;
-              }
-            }
-            if ((name === 'type' || name === 'index' || name === 'textPrompt') && value !== undefined && value !== null) {
-              allowedValues.add(String(value));
-            }
-          });
-        });
-        console.log('[Style] allowedValues', Array.from(allowedValues));
-        console.log('[Style] allowedNames', Array.from(allowedNames));
-
-        // Filtrage strict des options locales
-        // Si aucune valeur n'est déduite depuis paramsArray, on filtre par nom (name/label)
-        const shouldUseNames = allowedValues.size === 0 && allowedNames.size > 0;
-        const filtered = options.filter((opt) => {
-          if (shouldUseNames) {
-            return allowedNames.has(String(opt.value)) || allowedNames.has(String(opt.label));
+        // Restreindre au type d'effet magique sélectionné ET filtrer par allowedIds et is_visible
+        console.log('[Style] ===== DÉBUT FILTRAGE =====');
+        console.log('[Style] effectId recherché:', effectId);
+        console.log('[Style] allowedIds:', Array.from(allowedIds));
+        
+        const matchingType = [];
+        const excluded = [];
+        const wrongType = [];
+        
+        (effectsData || []).forEach((e) => {
+          const effectIdNum = Number(e.id);
+          
+          // Vérifier si l'effet est dans allowedIds
+          if (!allowedIds.has(effectIdNum)) {
+            return; // Ignorer complètement les effets non autorisés
           }
-          return allowedValues.has(String(opt.value));
+          
+          // Log tous les effets autorisés avec leur activeEffectType
+          if (e.activeEffectType !== effectId) {
+            wrongType.push({ id: e.id, name: e.name, activeEffectType: e.activeEffectType });
+            return;
+          }
+          
+          // Log détaillé pour les effets du bon type
+          const reasons = [];
+          
+          if (Number.isNaN(effectIdNum)) {
+            reasons.push('ID invalide');
+          }
+          if (!e.is_visible) {
+            reasons.push('is_visible=false');
+          }
+          
+          if (reasons.length > 0) {
+            excluded.push({ id: e.id, name: e.name, reasons });
+          } else {
+            matchingType.push(e);
+          }
         });
-        console.log('[Style] options total', options.length, 'filtered', filtered.length);
-        setFilteredOptions(filtered);
+        
+        console.log('[Style] ===== FILTRAGE DÉTAILLÉ =====');
+        console.log('[Style] Effets du mauvais type:', wrongType.length);
+        console.log('[Style] Liste mauvais type:', wrongType);
+        console.log('[Style] Effets inclus (bon type + visible):', matchingType.length);
+        console.log('[Style] Liste incluse:', matchingType.map(e => ({ id: e.id, name: e.name, is_visible: e.is_visible })));
+        console.log('[Style] Effets exclus (bon type mais invisible):', excluded.length);
+        console.log('[Style] Liste exclue:', excluded);
+
+        // Convertir les effets Supabase en format d'options pour l'affichage
+        const formattedOptions = matchingType.map((effect) => ({
+          value: effect.name, // Utiliser le nom de l'effet comme valeur
+          label: effect.name, // Utiliser le nom de l'effet comme label
+          image: effect.preview, // Utiliser la preview de Supabase
+          effectData: effect // Garder toutes les données de l'effet
+        }));
+        
+        console.log('[Style] ===== RÉSULTAT FINAL =====');
+        console.log('[Style] Nombre d\'effets affichés:', formattedOptions.length);
+        console.log('[Style] Liste des effets:', formattedOptions.map(o => o.label));
+        setFilteredOptions(formattedOptions);
       } catch (err) {
         console.error('Erreur filtrage options magiques:', err);
         setFilteredOptions([]);
@@ -588,21 +676,21 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
 
   return (
     <motion.div 
-      className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-6 portrait:p-8 portrait:lg:p-12"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <div className="max-w-4xl w-full">
-        <h2 className="text-3xl font-bold text-white text-center mb-6">
+      <div className="max-w-5xl portrait:max-w-6xl w-full">
+        <h2 className="text-3xl portrait:text-4xl portrait:lg:text-5xl font-bold text-white text-center mb-6 portrait:mb-8 portrait:lg:mb-12">
           {getText('select_effect_option', 'Choisissez votre style')}
         </h2>
         
-        <div className="grid grid-cols-3 md:grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 portrait:grid-cols-3 portrait:lg:grid-cols-3 gap-4 portrait:gap-6 portrait:lg:gap-8 max-h-[70vh] portrait:max-h-[72vh] overflow-y-auto pr-2">
           {filteredOptions.map((option) => (
             <motion.div
               key={option.value}
-              className="bg-white/10 rounded-xl overflow-hidden cursor-pointer"
+              className="bg-white/10 rounded-xl portrait:rounded-2xl overflow-hidden cursor-pointer"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => onSelectOption(option.value)}
@@ -610,19 +698,19 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
               <img 
                 src={option.image} 
                 alt={option.label} 
-                className="w-full h-48 object-cover"
+                className="w-full h-40 portrait:h-56 portrait:lg:h-80 object-cover"
               />
-              <div className="p-3 text-center">
-                <p className="text-white font-medium">{option.label}</p>
+              <div className="p-3 portrait:p-4 portrait:lg:p-6 text-center">
+                <p className="text-white font-medium text-base portrait:text-lg portrait:lg:text-2xl">{option.label}</p>
               </div>
             </motion.div>
           ))}
         </div>
         
-        <div className="mt-8 text-center">
+        <div className="mt-6 portrait:mt-8 portrait:lg:mt-12 text-center">
           <button
             onClick={onCancel}
-            className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-full"
+            className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-8 portrait:py-4 portrait:px-10 portrait:lg:py-5 portrait:lg:px-14 rounded-full text-base portrait:text-lg portrait:lg:text-2xl"
           >
             {getText('button_cancel', 'Annuler')}
           </button>
@@ -635,7 +723,7 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
 // Composant modal pour partager (Email ou WhatsApp)
 const ShareModal = ({ isOpen, onClose, onSendEmail, onSendWhatsApp, isLoading }) => {
   const { getText } = useTextContent();
-  const [activeTab, setActiveTab] = useState('email');
+  const [activeTab, setActiveTab] = useState('email'); // 'email' ou 'whatsapp'
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
@@ -647,6 +735,7 @@ const ShareModal = ({ isOpen, onClose, onSendEmail, onSendWhatsApp, isLoading })
   };
 
   const validateWhatsApp = (number) => {
+    // Valider le format du numéro WhatsApp (format international)
     const whatsappRegex = /^\+?[1-9]\d{1,14}$/;
     return whatsappRegex.test(number.replace(/[\s-]/g, ''));
   };
@@ -654,28 +743,34 @@ const ShareModal = ({ isOpen, onClose, onSendEmail, onSendWhatsApp, isLoading })
   const handleEmailSubmit = (e) => {
     e.preventDefault();
     setEmailError('');
+    
     if (!email.trim()) {
       setEmailError(getText('email_required', 'Veuillez saisir une adresse email'));
       return;
     }
+    
     if (!validateEmail(email)) {
       setEmailError(getText('email_invalid', 'Veuillez saisir une adresse email valide'));
       return;
     }
+    
     onSendEmail(email);
   };
 
   const handleWhatsAppSubmit = (e) => {
     e.preventDefault();
     setWhatsappError('');
+    
     if (!whatsappNumber) {
       setWhatsappError(getText('whatsapp_required', 'Veuillez saisir un numéro WhatsApp'));
       return;
     }
+    
     if (!validateWhatsApp(whatsappNumber)) {
       setWhatsappError(getText('whatsapp_invalid', 'Veuillez saisir un numéro WhatsApp valide'));
       return;
     }
+    
     onSendWhatsApp(whatsappNumber);
   };
 
@@ -719,49 +814,142 @@ const ShareModal = ({ isOpen, onClose, onSendEmail, onSendWhatsApp, isLoading })
           </p>
         </div>
 
+        {/* Onglets */}
         <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-xl">
-          <button type="button" onClick={() => setActiveTab('email')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${activeTab === 'email' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-800'}`}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('email')}
+            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+              activeTab === 'email'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
             <div className="flex items-center justify-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
               {getText('email_tab', 'Email')}
             </div>
           </button>
-          <button type="button" onClick={() => setActiveTab('whatsapp')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${activeTab === 'whatsapp' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-600 hover:text-gray-800'}`}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('whatsapp')}
+            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+              activeTab === 'whatsapp'
+                ? 'bg-white text-green-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
             <div className="flex items-center justify-center gap-2">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+              </svg>
               {getText('whatsapp_tab', 'WhatsApp')}
             </div>
           </button>
         </div>
 
+        {/* Contenu Email */}
         {activeTab === 'email' && (
           <form onSubmit={handleEmailSubmit}>
             <div className="mb-4">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">{getText('email_address', 'Adresse email')}</label>
-              <input type="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900" placeholder={getText('email_placeholder', 'votre@email.com')} disabled={isLoading} />
-              {emailError && <p className="text-red-500 text-sm mt-2">{emailError}</p>}
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                {getText('email_address', 'Adresse email')}
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900"
+                placeholder={getText('email_placeholder', 'votre@email.com')}
+                disabled={isLoading}
+              />
+              {emailError && (
+                <p className="text-red-500 text-sm mt-2">{emailError}</p>
+              )}
             </div>
+
             <div className="flex gap-3">
-              <button type="button" onClick={handleClose} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors" disabled={isLoading}>{getText('cancel', 'Annuler')}</button>
-              <button type="submit" className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center" disabled={isLoading}>
-                {isLoading ? (<><svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>{getText('sending', 'Envoi...')}</>) : (getText('send', 'Envoyer'))}
+              <button
+                type="button"
+                onClick={handleClose}
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
+                disabled={isLoading}
+              >
+                {getText('cancel', 'Annuler')}
+              </button>
+              <button
+                type="submit"
+                className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    {getText('sending', 'Envoi...')}
+                  </>
+                ) : (
+                  getText('send', 'Envoyer')
+                )}
               </button>
             </div>
           </form>
         )}
 
+        {/* Contenu WhatsApp */}
         {activeTab === 'whatsapp' && (
           <form onSubmit={handleWhatsAppSubmit}>
             <div className="mb-4">
-              <label htmlFor="whatsapp" className="block text-sm font-medium text-gray-700 mb-2">{getText('whatsapp_number', 'Numéro WhatsApp')}</label>
-              <PhoneInput international defaultCountry="FR" value={whatsappNumber} onChange={setWhatsappNumber} disabled={isLoading} className="phone-input-custom" placeholder={getText('whatsapp_placeholder', 'Entrez votre numéro')} />
-              {whatsappError && <p className="text-red-500 text-sm mt-2">{whatsappError}</p>}
-              <p className="text-gray-500 text-xs mt-2">{getText('whatsapp_format_hint', 'Sélectionnez votre pays et entrez votre numéro')}</p>
+              <label htmlFor="whatsapp" className="block text-sm font-medium text-gray-700 mb-2">
+                {getText('whatsapp_number', 'Numéro WhatsApp')}
+              </label>
+              <PhoneInput
+                international
+                defaultCountry="FR"
+                value={whatsappNumber}
+                onChange={setWhatsappNumber}
+                disabled={isLoading}
+                className="phone-input-custom"
+                placeholder={getText('whatsapp_placeholder', 'Entrez votre numéro')}
+              />
+              {whatsappError && (
+                <p className="text-red-500 text-sm mt-2">{whatsappError}</p>
+              )}
+              <p className="text-gray-500 text-xs mt-2">
+                {getText('whatsapp_format_hint', 'Sélectionnez votre pays et entrez votre numéro')}
+              </p>
             </div>
+
             <div className="flex gap-3">
-              <button type="button" onClick={handleClose} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors" disabled={isLoading}>{getText('cancel', 'Annuler')}</button>
-              <button type="submit" className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center" disabled={isLoading}>
-                {isLoading ? (<><svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>{getText('sending', 'Envoi...')}</>) : (getText('send', 'Envoyer'))}
+              <button
+                type="button"
+                onClick={handleClose}
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
+                disabled={isLoading}
+              >
+                {getText('cancel', 'Annuler')}
+              </button>
+              <button
+                type="submit"
+                className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    {getText('sending', 'Envoi...')}
+                  </>
+                ) : (
+                  getText('send', 'Envoyer')
+                )}
               </button>
             </div>
           </form>
@@ -1797,10 +1985,15 @@ const savePhoto = async () => {
       const photoUrl = qrTargetUrl || imageTraiteeDisplay;
       console.log('Envoi de la photo par email à:', email);
       console.log('URL de la photo:', photoUrl);
+      
+      // Envoyer l'email via le service backend
       await sendPhotoByEmail(email, photoUrl);
+      
+      // Fermer le modal et afficher un message de succès
       setShowEmailModal(false);
       setEmailAddress('');
       notify.success(getText('email_sent_success', 'Photo envoyée par email avec succès !'));
+      
     } catch (error) {
       console.error('Erreur lors de l\'envoi de l\'email:', error);
       notify.error(getText('email_send_error', error.message || 'Erreur lors de l\'envoi de l\'email'));
@@ -1812,13 +2005,21 @@ const savePhoto = async () => {
   const handleSendWhatsApp = async (phoneNumber) => {
     setIsEmailSending(true);
     try {
+      // Créer le message WhatsApp avec le lien de la photo
       const photoUrl = qrTargetUrl || imageTraiteeDisplay;
       const message = encodeURIComponent(`Voici votre photo Snapbooth ! ${photoUrl}`);
       const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
+      
       console.log('Envoi de la photo par WhatsApp au:', phoneNumber);
+      console.log('URL WhatsApp:', whatsappUrl);
+      
+      // Ouvrir WhatsApp dans une nouvelle fenêtre
       window.open(whatsappUrl, '_blank');
+      
+      // Fermer le modal et afficher un message de succès
       setShowEmailModal(false);
       notify.success(getText('whatsapp_sent_success', 'Lien WhatsApp ouvert avec succès !'));
+      
     } catch (error) {
       console.error('Erreur lors de l\'envoi WhatsApp:', error);
       notify.error(getText('whatsapp_send_error', 'Erreur lors de l\'envoi WhatsApp'));
@@ -1919,10 +2120,10 @@ const savePhoto = async () => {
         </div>
       ) : (
         <>
-          {/* Logo SnapBooth - Cliquer pour accéder à l'admin */}
+          {/* Logo SnapBooth - Cliquer pour accéder à la sélection d'événements */}
           <div className="absolute top-4 left-4 z-10">
             <button 
-              onClick={() => setShowAdminPasswordModal(true)}
+              onClick={() => navigate('/eventselection')}
               className="hover:opacity-75 transition-opacity"
             >
               <img src="/assets/snap_booth.png" alt="SnapBooth" className="h-16" />
@@ -2012,11 +2213,9 @@ const savePhoto = async () => {
           )}
         </div>
       ) : (
-        <div className="relative w-full max-w-md mx-auto h-[90vh] overflow-hidden">
-          {/* Contenu mode normal */}
-          <div className="relative w-full max-w-md mx-auto h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 w-screen h-screen overflow-hidden">
         {/* Webcam */}
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 w-full h-full">
           <Webcam
             audio={false}
             ref={webcamRef}
@@ -2031,6 +2230,7 @@ const savePhoto = async () => {
               aspectRatio: SCREEN_WIDTH / SCREEN_HEIGHT
             }}
             className="w-full h-full object-cover"
+            style={{ minWidth: '100vw', minHeight: '100vh' }}
             mirrored={mirrorPreview}
             onUserMedia={() => setWebcamEstPret(true)}
             onUserMediaError={(err) => {
@@ -2085,7 +2285,6 @@ const savePhoto = async () => {
           <img src="/assets/snap_booth.png" alt="SnapBooth" className="h-10" />
         </div>
       </div>
-        </div>
       )}
     </motion.div>
   </AnimatePresence>
@@ -2164,7 +2363,7 @@ const savePhoto = async () => {
               {/* Écran de décompte */}
               {etape === 'decompte' && (
                 <motion.div 
-                  className="min-h-screen flex items-center justify-center relative bg-gradient-to-b from-indigo-900 to-purple-900"
+                  className="fixed inset-0 w-screen h-screen flex items-center justify-center relative bg-gradient-to-b from-indigo-900 to-purple-900"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -2173,7 +2372,7 @@ const savePhoto = async () => {
                       {/* Conteneur principal */}
               <div className="absolute inset-0 flex items-center justify-center">
                 {/* Webcam - doit être positionnée derrière */}
-                <div className="absolute inset-0 z-0">
+                <div className="absolute inset-0 z-0 w-full h-full">
                  <Webcam
                     audio={false}
                     ref={webcamRef}
@@ -2187,7 +2386,9 @@ const savePhoto = async () => {
                       facingMode: "user",
                       aspectRatio: SCREEN_WIDTH / SCREEN_HEIGHT
                     }}
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-cover"
+                    style={{ minWidth: '100vw', minHeight: '100vh' }}
+                    mirrored={mirrorPreview}
                     onUserMediaError={(err) => {
                       console.error("Erreur webcam:", err);
                       setWebcamError(`Erreur d'accès à la caméra: ${err.name}`);
