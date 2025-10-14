@@ -491,6 +491,15 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
   const { effectType, magicalId } = req.body;
   console.log("Fichier reçu :", req.file);
   console.log("Body reçu :", req.body);
+  
+  // Log détaillé des paramètres pour l'appel API
+  console.log("==== PARAMÈTRES POUR L'APPEL API ====");
+  console.log("effectType:", effectType);
+  console.log("magicalId:", magicalId);
+  console.log("Taille de l'image:", req.file?.size, "octets");
+  console.log("Type MIME:", req.file?.mimetype);
+  console.log("=====================================");
+  
   const imageBuffer = req.file?.buffer;
 
   if (!imageBuffer) return res.status(400).json({ error: 'Image manquante.' });
@@ -684,7 +693,7 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
           formData,
           {
             headers: {
-              'ailabapi-api-key': 'AuEAFWlth9dXcKe0XhYFGoVBbp12ryq6EVRgG25fNsiM5nxf1Zg4CbB7lpva6Lkw', 
+              'ailabapi-api-key': '24icb7sh83knhMutmqEQ4xSmdOBy5pxd831eaUMPH7JB0vTqIWArVYNNlLFKOPVU', 
               ...formData.getHeaders(),
             },
           }

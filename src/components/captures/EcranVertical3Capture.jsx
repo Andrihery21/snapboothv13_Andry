@@ -653,9 +653,30 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
         console.log('[Style] Effets exclus (bon type mais invisible):', excluded.length);
         console.log('[Style] Liste exclue:', excluded);
 
+        // Récupérer les valeurs de params_array pour les effets filtrés
+        const paramsArrayIds = matchingType
+          .map(e => e.paramsArray)
+          .filter(id => id != null);
+
+        let paramsMap = {};
+        if (paramsArrayIds.length > 0) {
+          const { data: paramsData, error: paramsError } = await supabase
+            .from('params_array')
+            .select('id, value')
+            .in('id', paramsArrayIds);
+
+          if (!paramsError && paramsData) {
+            paramsData.forEach(param => {
+              paramsMap[param.id] = param.value;
+            });
+          }
+        }
+
         // Convertir les effets Supabase en format d'options pour l'affichage
         const formattedOptions = matchingType.map((effect) => ({
-          value: effect.name, // Utiliser le nom de l'effet comme valeur
+          value: effect.paramsArray && paramsMap[effect.paramsArray] 
+            ? paramsMap[effect.paramsArray] 
+            : effect.name, // Utiliser la valeur de params_array, sinon le nom
           label: effect.name, // Utiliser le nom de l'effet comme label
           image: effect.preview, // Utiliser la preview de Supabase
           effectData: effect // Garder toutes les données de l'effet
@@ -663,7 +684,7 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
         
         console.log('[Style] ===== RÉSULTAT FINAL =====');
         console.log('[Style] Nombre d\'effets affichés:', formattedOptions.length);
-        console.log('[Style] Liste des effets:', formattedOptions.map(o => o.label));
+        console.log('[Style] Liste des effets:', formattedOptions.map(o => ({ label: o.label, value: o.value })));
         setFilteredOptions(formattedOptions);
       } catch (err) {
         console.error('Erreur filtrage options magiques:', err);

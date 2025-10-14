@@ -71,7 +71,9 @@ const TemplateSelection = ({ templates, onSelectTemplate, onClose }) => {
               whileTap={{ scale: 0.98 }}
             >
               <div className="relative">
-                <img src={template.url} alt={template.name} className="w-full h-44 object-contain bg-white" />
+                <div className="w-full aspect-[4/3] bg-white flex items-center justify-center overflow-hidden">
+                  <img src={template.url} alt={template.name} className="w-full h-full object-contain" />
+                </div>
                 <motion.div
                   className="absolute inset-0"
                   animate={hoveredId === template.id ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(126,34,206,0.18), transparent)' } : { background: 'transparent' }}
@@ -425,7 +427,9 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
                 whileTap={{ scale: 0.98 }}
               >
                 <div className="relative">
-                  <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-40 portrait:h-52 portrait:lg:h-72 object-cover" />
+                  <div className="w-full aspect-[4/3] bg-black flex items-center justify-center overflow-hidden">
+                    <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-full object-contain" />
+                  </div>
                   <motion.div
                     className="absolute inset-0"
                     animate={hovered === effect.id ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(59,130,246,0.18), transparent)' } : { background: 'transparent' }}
@@ -695,11 +699,13 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
               whileTap={{ scale: 0.95 }}
               onClick={() => onSelectOption(option.value)}
             >
-              <img 
-                src={option.image} 
-                alt={option.label} 
-                className="w-full h-40 portrait:h-56 portrait:lg:h-80 object-cover"
-              />
+              <div className="w-full aspect-[4/3] bg-black flex items-center justify-center overflow-hidden">
+                <img 
+                  src={option.image} 
+                  alt={option.label} 
+                  className="w-full h-full object-contain"
+                />
+              </div>
               <div className="p-3 portrait:p-4 portrait:lg:p-6 text-center">
                 <p className="text-white font-medium text-base portrait:text-lg portrait:lg:text-2xl">{option.label}</p>
               </div>
@@ -994,7 +1000,9 @@ const NormalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => {
               whileTap={{ scale: 0.98 }}
             >
               <div className="relative">
-                <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-44 object-cover" />
+                <div className="w-full aspect-[4/3] bg-black flex items-center justify-center overflow-hidden">
+                  <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-full object-contain" />
+                </div>
                 <motion.div
                   className="absolute inset-0"
                   animate={hovered === effect.id ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(168,85,247,0.18), transparent)' } : { background: 'transparent' }}
@@ -2484,26 +2492,13 @@ const savePhoto = async () => {
                   {etape === 'resultat' && imageTraiteeDisplay && (
                     <motion.div className="min-h-screen flex flex-col relative">
                       {/* Conteneur principal */}
-                      <div className="absolute inset-0 flex items-center justify-center bg-white">
+                      <div className="absolute inset-0 flex items-center justify-center bg-white p-8">
                         {/* Image traitée avec effets de touche finale */}
-                        <div className="relative" style={{ width: '80%', aspectRatio: `${imageDimensions.width}/${imageDimensions.height}` }}>
-                          <img 
-                            src={imageTraiteeDisplay} 
-                            alt="Photo traitée" 
-                            className="w-full h-full object-contain"
-                          />
-                        </div>
-                        
-                        {/* Template par-dessus */}
-                        {selectedTemplate && (
-                          <div className="absolute inset-0 pointer-events-none">
-                            <img 
-                              src={selectedTemplate.url} 
-                              alt="Template" 
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
-                        )}
+                        <img 
+                          src={imageTraiteeDisplay} 
+                          alt="Photo traitée" 
+                          className="max-w-full max-h-full w-auto h-auto object-contain"
+                        />
                       </div>
                       
                       {/* Compteur avant bascule vers l'écran suivant */}
@@ -2525,27 +2520,14 @@ const savePhoto = async () => {
                   transition={{ duration: 0.5 }}
                 >
                   {/* Image traitée en arrière-plan (avec template déjà intégré) */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-white">
+                  <div className="absolute inset-0 flex items-center justify-center bg-white p-8">
                     {/* Image traitée avec effets de touche finale */}
-                    <div className="relative" style={{ width: '80%', aspectRatio: `${imageDimensions.width}/${imageDimensions.height}` }}>
-                      <img 
-                        src={imageTraiteeDisplay || imageTraitee} 
-                        alt="Photo traitée" 
-                        className="w-full h-full object-contain"
-                        onLoad={handleImageLoad}
-                      />
-                    </div>
-                    
-                    {/* Template par-dessus */}
-                    {selectedTemplate && (
-                      <div className="absolute inset-0 pointer-events-none">
-                        <img 
-                          src={selectedTemplate.url} 
-                          alt="Template" 
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                    )}
+                    <img 
+                      src={imageTraiteeDisplay || imageTraitee} 
+                      alt="Photo traitée" 
+                      className="max-w-full max-h-full w-auto h-auto object-contain"
+                      onLoad={handleImageLoad}
+                    />
                   </div>
 
                   {/* Boutons en haut */}

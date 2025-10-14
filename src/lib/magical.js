@@ -121,6 +121,10 @@ async function applyAILabEffect(inputCanvas, effectType,magicalId) {
  */
 async function processImageWithAILab(imageBlob, effectType, magicalId) {
    try {
+    console.log('📤 Préparation de l\'appel API avec:');
+    console.log('   - effectType (value de params_array):', effectType);
+    console.log('   - magicalId:', magicalId);
+    
     const formData = new FormData();
     formData.append('image', imageBlob);
     formData.append('effectType', effectType);

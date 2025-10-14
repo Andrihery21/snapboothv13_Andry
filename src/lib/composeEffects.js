@@ -103,25 +103,53 @@ export const EFFECTOPTION = {};
  */
 export async function loadEffectOptions() {
   try {
+    // Récupérer les données de effects_api avec paramsArray
     const { data, error } = await supabase
       .from('effects_api')
-      .select('name, preview, activeEffectType'); // Sélectionnez les colonnes nécessaires
+      .select('name, preview, activeEffectType, paramsArray');
 
     if (error) {
       console.error('Erreur lors du chargement des options d\'effets depuis Supabase:', error);
+      console.error('Détails de l\'erreur:', error);
       return;
     }
 
+    console.log('Données brutes de effects_api:', data);
+
+    // Pour chaque effet, récupérer la valeur correspondante dans params_array
+    const effectsWithValues = await Promise.all(
+      data.map(async (effect) => {
+        if (effect.paramsArray) {
+          // Récupérer la valeur depuis params_array
+          const { data: paramData, error: paramError } = await supabase
+            .from('params_array')
+            .select('value')
+            .eq('id', effect.paramsArray)
+            .single();
+
+          if (paramError) {
+            console.error(`Erreur lors de la récupération de params_array pour ${effect.name}:`, paramError);
+            return { ...effect, paramValue: effect.name };
+          }
+
+          return { ...effect, paramValue: paramData?.value || effect.name };
+        }
+        return { ...effect, paramValue: effect.name };
+      })
+    );
+
+    console.log('Effets avec valeurs:', effectsWithValues);
+
     // Grouper les options par activeEffectType
-    const groupedOptions = data.reduce((acc, effect) => {
-      const { name, preview, activeEffectType } = effect;
+    const groupedOptions = effectsWithValues.reduce((acc, effect) => {
+      const { name, preview, activeEffectType, paramValue } = effect;
       if (!acc[activeEffectType]) {
         acc[activeEffectType] = [];
       }
       acc[activeEffectType].push({
-        value: name,   // 'value' correspond à 'name' dans Supabase
-        label: name,   // Utilisez 'name' également pour le label
-        image: preview // 'image' correspond à 'preview' dans Supabase
+        value: paramValue,   // Utilise 'value' de params_array
+        label: name,         // Le label reste 'name' pour l'affichage
+        image: preview       // 'image' correspond à 'preview' dans Supabase
       });
       return acc;
     }, {});

@@ -379,7 +379,7 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
           <button onClick={onCancel} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 portrait:px-6 portrait:py-3 portrait:lg:px-8 portrait:lg:py-4 rounded-xl text-base portrait:text-lg portrait:lg:text-xl">{getText('button_back', 'Retour')}</button>
         </div>
 
-        <div className="grid grid-cols-2 portrait:grid-cols-2 portrait:lg:grid-cols-3 gap-4 portrait:gap-6 portrait:lg:gap-8 max-h-[70vh] portrait:max-h-[72vh] overflow-y-auto pr-2">
+        <div className="grid grid-cols-3 gap-4 portrait:gap-6 portrait:lg:gap-8">
           {/* Option Sans filtre */}
           <motion.button
             key="no-filter"
@@ -391,7 +391,7 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
             whileTap={{ scale: 0.98 }}
           >
             <div className="relative">
-              <div className="w-full h-40 portrait:h-52 portrait:lg:h-72 bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
+              <div className="w-full h-56 portrait:h-64 portrait:lg:h-80 bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
                 <div className="text-center">
                   <svg className="w-12 h-12 portrait:w-16 portrait:h-16 portrait:lg:w-24 portrait:lg:h-24 mx-auto text-gray-700 mb-2 portrait:mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -425,7 +425,7 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
                 whileTap={{ scale: 0.98 }}
               >
                 <div className="relative">
-                  <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-40 portrait:h-52 portrait:lg:h-72 object-cover" />
+                  <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-56 portrait:h-64 portrait:lg:h-80 object-cover" />
                   <motion.div
                     className="absolute inset-0"
                     animate={hovered === effect.id ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(59,130,246,0.18), transparent)' } : { background: 'transparent' }}
@@ -653,9 +653,30 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
         console.log('[Style] Effets exclus (bon type mais invisible):', excluded.length);
         console.log('[Style] Liste exclue:', excluded);
 
+        // Récupérer les valeurs de params_array pour les effets filtrés
+        const paramsArrayIds = matchingType
+          .map(e => e.paramsArray)
+          .filter(id => id != null);
+
+        let paramsMap = {};
+        if (paramsArrayIds.length > 0) {
+          const { data: paramsData, error: paramsError } = await supabase
+            .from('params_array')
+            .select('id, value')
+            .in('id', paramsArrayIds);
+
+          if (!paramsError && paramsData) {
+            paramsData.forEach(param => {
+              paramsMap[param.id] = param.value;
+            });
+          }
+        }
+
         // Convertir les effets Supabase en format d'options pour l'affichage
         const formattedOptions = matchingType.map((effect) => ({
-          value: effect.name, // Utiliser le nom de l'effet comme valeur
+          value: effect.paramsArray && paramsMap[effect.paramsArray] 
+            ? paramsMap[effect.paramsArray] 
+            : effect.name, // Utiliser la valeur de params_array, sinon le nom
           label: effect.name, // Utiliser le nom de l'effet comme label
           image: effect.preview, // Utiliser la preview de Supabase
           effectData: effect // Garder toutes les données de l'effet
@@ -663,7 +684,7 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
         
         console.log('[Style] ===== RÉSULTAT FINAL =====');
         console.log('[Style] Nombre d\'effets affichés:', formattedOptions.length);
-        console.log('[Style] Liste des effets:', formattedOptions.map(o => o.label));
+        console.log('[Style] Liste des effets:', formattedOptions.map(o => ({ label: o.label, value: o.value })));
         setFilteredOptions(formattedOptions);
       } catch (err) {
         console.error('Erreur filtrage options magiques:', err);
@@ -686,7 +707,7 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
           {getText('select_effect_option', 'Choisissez votre style')}
         </h2>
         
-        <div className="grid grid-cols-2 portrait:grid-cols-3 portrait:lg:grid-cols-3 gap-4 portrait:gap-6 portrait:lg:gap-8 max-h-[70vh] portrait:max-h-[72vh] overflow-y-auto pr-2">
+        <div className="grid grid-cols-3 gap-4 portrait:gap-6 portrait:lg:gap-8 max-h-[70vh] portrait:max-h-[72vh] overflow-y-auto pr-2">
           {filteredOptions.map((option) => (
             <motion.div
               key={option.value}
@@ -695,11 +716,13 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
               whileTap={{ scale: 0.95 }}
               onClick={() => onSelectOption(option.value)}
             >
-              <img 
-                src={option.image} 
-                alt={option.label} 
-                className="w-full h-40 portrait:h-56 portrait:lg:h-80 object-cover"
-              />
+              <div className="w-full aspect-[4/3] bg-black flex items-center justify-center overflow-hidden">
+                <img 
+                  src={option.image} 
+                  alt={option.label} 
+                  className="w-full h-full object-contain"
+                />
+              </div>
               <div className="p-3 portrait:p-4 portrait:lg:p-6 text-center">
                 <p className="text-white font-medium text-base portrait:text-lg portrait:lg:text-2xl">{option.label}</p>
               </div>
@@ -721,13 +744,14 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
 };
 
 // Composant modal pour partager (Email ou WhatsApp)
-const ShareModal = ({ isOpen, onClose, onSendEmail, onSendWhatsApp, isLoading }) => {
+const ShareModal = ({ isOpen, onClose, onSendEmail, onSendWhatsApp, isLoading, imageUrl }) => {
   const { getText } = useTextContent();
-  const [activeTab, setActiveTab] = useState('email'); // 'email' ou 'whatsapp'
+  const [activeTab, setActiveTab] = useState('email'); // 'email', 'whatsapp' ou 'download'
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [whatsappError, setWhatsappError] = useState('');
+  const [downloadFormat, setDownloadFormat] = useState('jpg');
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -774,11 +798,69 @@ const ShareModal = ({ isOpen, onClose, onSendEmail, onSendWhatsApp, isLoading })
     onSendWhatsApp(whatsappNumber);
   };
 
+  const handleDownload = async () => {
+    if (!imageUrl) {
+      notify.error(getText('no_image', 'Aucune image à télécharger'));
+      return;
+    }
+
+    try {
+      const toastId = notify.loading(getText('preparing_download', 'Préparation du téléchargement...'));
+      
+      // Créer un canvas pour convertir l'image
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        
+        // Convertir au format sélectionné
+        const mimeType = downloadFormat === 'png' ? 'image/png' : 'image/jpeg';
+        const quality = downloadFormat === 'jpg' ? 0.95 : undefined;
+        
+        canvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `snapbooth-photo-${Date.now()}.${downloadFormat}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          
+          notify.update(toastId, { 
+            type: 'success', 
+            render: getText('download_success', 'Photo téléchargée avec succès!'), 
+            autoClose: 3000 
+          });
+        }, mimeType, quality);
+      };
+      
+      img.onerror = () => {
+        notify.update(toastId, { 
+          type: 'error', 
+          render: getText('download_error', 'Erreur lors du téléchargement'), 
+          autoClose: 3000 
+        });
+      };
+      
+      img.src = imageUrl;
+    } catch (error) {
+      console.error('Erreur lors du téléchargement:', error);
+      notify.error(getText('download_error', 'Erreur lors du téléchargement'));
+    }
+  };
+
   const handleClose = () => {
     setEmail('');
     setEmailError('');
     setWhatsappNumber('');
     setWhatsappError('');
+    setDownloadFormat('jpg');
     setActiveTab('email');
     onClose();
   };
@@ -819,33 +901,49 @@ const ShareModal = ({ isOpen, onClose, onSendEmail, onSendWhatsApp, isLoading })
           <button
             type="button"
             onClick={() => setActiveTab('email')}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+            className={`flex-1 py-2 px-3 rounded-lg font-medium transition-all ${
               activeTab === 'email'
                 ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-800'
             }`}
           >
-            <div className="flex items-center justify-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-center gap-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              {getText('email_tab', 'Email')}
+              <span className="text-sm">{getText('email_tab', 'Email')}</span>
             </div>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('whatsapp')}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+            className={`flex-1 py-2 px-3 rounded-lg font-medium transition-all ${
               activeTab === 'whatsapp'
                 ? 'bg-white text-green-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-800'
             }`}
           >
-            <div className="flex items-center justify-center gap-2">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-center gap-1">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
               </svg>
-              {getText('whatsapp_tab', 'WhatsApp')}
+              <span className="text-sm">{getText('whatsapp_tab', 'WhatsApp')}</span>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('download')}
+            className={`flex-1 py-2 px-3 rounded-lg font-medium transition-all ${
+              activeTab === 'download'
+                ? 'bg-white text-purple-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span className="text-sm">{getText('download_tab', 'Télécharger')}</span>
             </div>
           </button>
         </div>
@@ -953,6 +1051,98 @@ const ShareModal = ({ isOpen, onClose, onSendEmail, onSendWhatsApp, isLoading })
               </button>
             </div>
           </form>
+        )}
+
+        {/* Contenu Téléchargement */}
+        {activeTab === 'download' && (
+          <div>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                {getText('select_format', 'Choisissez le format de téléchargement')}
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <motion.button
+                  type="button"
+                  onClick={() => setDownloadFormat('jpg')}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    downloadFormat === 'jpg'
+                      ? 'border-purple-600 bg-purple-50'
+                      : 'border-gray-300 bg-white hover:border-purple-400'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <div className="flex flex-col items-center">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${
+                      downloadFormat === 'jpg' ? 'bg-purple-600' : 'bg-gray-200'
+                    }`}>
+                      <svg className={`w-6 h-6 ${
+                        downloadFormat === 'jpg' ? 'text-white' : 'text-gray-600'
+                      }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <span className={`font-bold text-lg ${
+                      downloadFormat === 'jpg' ? 'text-purple-600' : 'text-gray-700'
+                    }`}>JPG</span>
+                    <span className="text-xs text-gray-500 mt-1 text-center">
+                      {getText('jpg_description', 'Taille réduite, qualité élevée')}
+                    </span>
+                  </div>
+                </motion.button>
+
+                <motion.button
+                  type="button"
+                  onClick={() => setDownloadFormat('png')}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    downloadFormat === 'png'
+                      ? 'border-purple-600 bg-purple-50'
+                      : 'border-gray-300 bg-white hover:border-purple-400'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <div className="flex flex-col items-center">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${
+                      downloadFormat === 'png' ? 'bg-purple-600' : 'bg-gray-200'
+                    }`}>
+                      <svg className={`w-6 h-6 ${
+                        downloadFormat === 'png' ? 'text-white' : 'text-gray-600'
+                      }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <span className={`font-bold text-lg ${
+                      downloadFormat === 'png' ? 'text-purple-600' : 'text-gray-700'
+                    }`}>PNG</span>
+                    <span className="text-xs text-gray-500 mt-1 text-center">
+                      {getText('png_description', 'Qualité maximale, transparence')}
+                    </span>
+                  </div>
+                </motion.button>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                {getText('cancel', 'Annuler')}
+              </button>
+              <button
+                type="button"
+                onClick={handleDownload}
+                className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                {getText('download_button', 'Télécharger')}
+              </button>
+            </div>
+          </div>
         )}
       </motion.div>
     </motion.div>
@@ -2398,12 +2588,12 @@ const savePhoto = async () => {
       
                    {/* Template avec fond transparent - positionné au-dessus */}
                     {selectedTemplate && (
-                     <div className="relative z-10 w-full h-full flex items-center justify-center">
+                     <div className="absolute inset-0 z-10 pointer-events-none">
                         <img 
                             src={selectedTemplate.url} 
                             alt="Template sélectionné" 
-                           
-                            className="max-w-full max-h-full object-contain"
+                            className="w-full h-full object-cover"
+                            style={{ minWidth: '100vw', minHeight: '100vh' }}
                           />
                         </div>   
                     
@@ -2500,7 +2690,7 @@ const savePhoto = async () => {
                             <img 
                               src={selectedTemplate.url} 
                               alt="Template" 
-                              className="w-full h-full object-contain"
+                              className="w-full h-full object-cover"
                             />
                           </div>
                         )}
@@ -2518,34 +2708,73 @@ const savePhoto = async () => {
               {/* Écran QR Code */}
               {etape === 'qrcode' && (
                 <motion.div 
-                  className="min-h-screen flex flex-col bg-amber-50 relative"
+                  className="min-h-screen flex flex-col relative overflow-hidden"
+                  style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)'
+                  }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.5 }}
                 >
+                  {/* Effet de fond animé */}
+                  <div className="absolute inset-0 overflow-hidden">
+                    <motion.div
+                      className="absolute w-96 h-96 bg-white/10 rounded-full blur-3xl"
+                      animate={{
+                        x: [0, 100, 0],
+                        y: [0, -100, 0],
+                      }}
+                      transition={{
+                        duration: 20,
+                        repeat: Infinity,
+                        ease: "linear"
+                      }}
+                      style={{ top: '10%', left: '10%' }}
+                    />
+                    <motion.div
+                      className="absolute w-96 h-96 bg-purple-300/10 rounded-full blur-3xl"
+                      animate={{
+                        x: [0, -100, 0],
+                        y: [0, 100, 0],
+                      }}
+                      transition={{
+                        duration: 15,
+                        repeat: Infinity,
+                        ease: "linear"
+                      }}
+                      style={{ bottom: '10%', right: '10%' }}
+                    />
+                  </div>
+
                   {/* Image traitée en arrière-plan (avec template déjà intégré) */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-white">
+                  <div className="absolute inset-0 flex items-center justify-center z-10">
                     {/* Image traitée avec effets de touche finale */}
-                    <div className="relative" style={{ width: '80%', aspectRatio: `${imageDimensions.width}/${imageDimensions.height}` }}>
+                    <motion.div 
+                      className="relative shadow-2xl rounded-2xl overflow-hidden border-4 border-white/30"
+                      style={{ width: '70%', aspectRatio: `${imageDimensions.width}/${imageDimensions.height}` }}
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.2, type: "spring" }}
+                    >
                       <img 
                         src={imageTraiteeDisplay || imageTraitee} 
                         alt="Photo traitée" 
-                        className="w-full h-full object-contain"
+                        className="w-full h-full object-contain bg-white"
                         onLoad={handleImageLoad}
                       />
-                    </div>
-                    
-                    {/* Template par-dessus */}
-                    {selectedTemplate && (
-                      <div className="absolute inset-0 pointer-events-none">
-                        <img 
-                          src={selectedTemplate.url} 
-                          alt="Template" 
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                    )}
+                      
+                      {/* Template par-dessus */}
+                      {selectedTemplate && (
+                        <div className="absolute inset-0 pointer-events-none">
+                          <img 
+                            src={selectedTemplate.url} 
+                            alt="Template" 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                    </motion.div>
                   </div>
 
                   {/* Boutons en haut */}
@@ -2576,75 +2805,89 @@ const savePhoto = async () => {
                   </div>
                   
                   {/* QR Code en bas à droite */}
-                  <div className="absolute bottom-6 right-6 flex flex-col items-end z-10">
+                  <div className="absolute bottom-8 right-8 flex flex-col items-end z-20">
                     <motion.div 
-                      className="bg-white p-4 rounded-xl shadow-lg mb-4"
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.3 }}
+                      className="bg-white p-6 rounded-2xl shadow-2xl mb-4 border-4 border-purple-300"
+                      initial={{ scale: 0.8, rotate: -5 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ delay: 0.3, type: "spring" }}
                     >
                       <QRCode 
                         value={qrTargetUrl || ''}
                         imageUrl={qrTargetUrl}
                         showQROnly={true} 
-                        size={180} 
-                        qrColor="#7e22ce"
-                        bgColor="#fef3c7"
+                        size={200} 
+                        qrColor="#6b21a8"
+                        bgColor="#ffffff"
                       />
                     </motion.div> 
-                    <motion.p 
-                      className="text-right text-purple-800 font-medium text-xl"
+                    <motion.div
+                      className="bg-white/95 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg"
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.4 }}
                     >
-                      {getText('scan_qr_text', 'Scannez le QR code')}
-                    </motion.p>
+                      <p className="text-purple-900 font-bold text-lg flex items-center gap-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                        </svg>
+                        {getText('scan_qr_text', 'Scannez le QR code')}
+                      </p>
+                    </motion.div>
                   </div>
                   
                   {/* Texte informatif en bas */}
                   <motion.div 
-                    className="absolute bottom-16 left-0 right-0 text-center px-6 z-10"
+                    className="absolute bottom-24 left-0 right-0 text-center px-6 z-10"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.5 }}
                   >
-                    
-                    <p className="text-gray-700 mb-2 text-lg font-medium">
-                      {getText('qr_instruction', 'Pour télécharger ou imprimer votre photo:')}
-                    </p>
-                    <p className="text-gray-600">
-                      {getText('qr_website', 'Rendez-vous sur snapbooth.com ou scannez le QR code')}
-                    </p>
+                    <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 max-w-2xl mx-auto shadow-xl border-2 border-white/50">
+                      <p className="text-purple-900 mb-3 text-xl font-bold flex items-center justify-center gap-2">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {getText('qr_instruction', 'Pour télécharger ou imprimer votre photo:')}
+                      </p>
+                      <p className="text-purple-700 text-lg">
+                        {getText('qr_website', 'Rendez-vous sur snapbooth.com ou scannez le QR code')}
+                      </p>
+                    </div>
                   </motion.div>
                   
                   {/* Pied de page avec date et minuteur */}
                   <div className="absolute bottom-4 left-0 right-0 text-center z-10">
                     <motion.div
-                      className="text-sm text-gray-600"
+                      className="bg-white/80 backdrop-blur-sm rounded-xl p-4 max-w-md mx-auto shadow-lg"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.6 }}
                     >
                       {/* Date de l'événement */}
-                      <p>{new Date().toLocaleDateString('fr-FR', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}</p>
+                      <p className="text-purple-900 font-semibold mb-2">
+                        {new Date().toLocaleDateString('fr-FR', { 
+                          weekday: 'long', 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
+                      </p>
                       
                       {/* Minuteur pour le retour automatique */}
                       <div className="mt-2">
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div className="w-full bg-purple-200 rounded-full h-3 overflow-hidden">
                           <motion.div 
-                            className="bg-purple-600 h-2.5 rounded-full" 
+                            className="bg-gradient-to-r from-purple-600 to-pink-500 h-3 rounded-full" 
                             initial={{ width: "100%" }}
                             animate={{ width: "0%" }}
                             transition={{ duration: qrCodeTimeRemaining, ease: "linear" }}
                           />
                         </div>
-                        <p className="text-xs mt-1">
+                        <p className="text-sm mt-2 text-purple-700 font-medium flex items-center justify-center gap-1">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
                           {getText('auto_return', 'Retour automatique dans')} {Math.floor(qrCodeTimeRemaining / 60)}:
                           {(qrCodeTimeRemaining % 60).toString().padStart(2, '0')}
                         </p>
@@ -2682,6 +2925,7 @@ const savePhoto = async () => {
                 onSendEmail={handleSendEmail}
                 onSendWhatsApp={handleSendWhatsApp}
                 isLoading={isEmailSending}
+                imageUrl={imageTraiteeDisplay || imageTraitee}
               />
             )}
           </AnimatePresence>

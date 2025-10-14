@@ -71,7 +71,9 @@ const TemplateSelection = ({ templates, onSelectTemplate, onClose }) => {
               whileTap={{ scale: 0.98 }}
             >
               <div className="relative">
-                <img src={template.url} alt={template.name} className="w-full h-44 object-contain bg-white" />
+                <div className="w-full aspect-[4/3] bg-white flex items-center justify-center overflow-hidden">
+                  <img src={template.url} alt={template.name} className="w-full h-full object-contain" />
+                </div>
                 <motion.div
                   className="absolute inset-0"
                   animate={hoveredId === template.id ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(126,34,206,0.18), transparent)' } : { background: 'transparent' }}
@@ -371,15 +373,15 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <div className="max-w-6xl portrait:max-w-7xl w-full rounded-2xl p-6 portrait:p-8 portrait:lg:p-12 relative overflow-hidden"
            style={{ background: 'radial-gradient(1200px 600px at 10% 10%, rgba(255,255,255,0.08), transparent), radial-gradient(800px 400px at 90% 30%, rgba(59,130,246,0.15), transparent)' }}>
-        <div className="flex items-center justify-between mb-6 portrait:mb-8 portrait:lg:mb-12">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-3xl portrait:text-4xl portrait:lg:text-5xl font-bold text-white">{getText('mode_magic_label', 'Mode Magique')}</h2>
             <p className="text-base portrait:text-lg portrait:lg:text-xl text-white/70 mt-1 portrait:mt-2">{getText('mode_magic_sub', "Transformez votre photo avec l'IA")}</p>
           </div>
-          <button onClick={onCancel} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 portrait:px-6 portrait:py-3 portrait:lg:px-8 portrait:lg:py-4 rounded-xl text-base portrait:text-lg portrait:lg:text-xl">{getText('button_back', 'Retour')}</button>
+          <button onClick={onCancel} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl">{getText('button_back', 'Retour')}</button>
         </div>
 
-        <div className="grid grid-cols-2 portrait:grid-cols-2 portrait:lg:grid-cols-3 gap-4 portrait:gap-6 portrait:lg:gap-8 max-h-[70vh] portrait:max-h-[72vh] overflow-y-auto pr-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 max-h-[70vh] overflow-y-auto pr-1">
           {/* Option Sans filtre */}
           <motion.button
             key="no-filter"
@@ -391,7 +393,7 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
             whileTap={{ scale: 0.98 }}
           >
             <div className="relative">
-              <div className="w-full h-40 portrait:h-52 portrait:lg:h-72 bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
+              <div className="w-full aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
                 <div className="text-center">
                   <svg className="w-12 h-12 portrait:w-16 portrait:h-16 portrait:lg:w-24 portrait:lg:h-24 mx-auto text-gray-700 mb-2 portrait:mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -425,7 +427,9 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
                 whileTap={{ scale: 0.98 }}
               >
                 <div className="relative">
-                  <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-40 portrait:h-52 portrait:lg:h-72 object-cover" />
+                  <div className="w-full aspect-[4/3] bg-black flex items-center justify-center overflow-hidden">
+                    <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-full object-contain" />
+                  </div>
                   <motion.div
                     className="absolute inset-0"
                     animate={hovered === effect.id ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(59,130,246,0.18), transparent)' } : { background: 'transparent' }}
@@ -695,11 +699,13 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
               whileTap={{ scale: 0.95 }}
               onClick={() => onSelectOption(option.value)}
             >
-              <img 
-                src={option.image} 
-                alt={option.label} 
-                className="w-full h-40 portrait:h-56 portrait:lg:h-80 object-cover"
-              />
+              <div className="w-full aspect-[4/3] bg-black flex items-center justify-center overflow-hidden">
+                <img 
+                  src={option.image} 
+                  alt={option.label} 
+                  className="w-full h-full object-contain"
+                />
+              </div>
               <div className="p-3 portrait:p-4 portrait:lg:p-6 text-center">
                 <p className="text-white font-medium text-base portrait:text-lg portrait:lg:text-2xl">{option.label}</p>
               </div>
@@ -994,7 +1000,9 @@ const NormalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => {
               whileTap={{ scale: 0.98 }}
             >
               <div className="relative">
-                <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-44 object-cover" />
+                <div className="w-full aspect-[4/3] bg-black flex items-center justify-center overflow-hidden">
+                  <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-full object-contain" />
+                </div>
                 <motion.div
                   className="absolute inset-0"
                   animate={hovered === effect.id ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(168,85,247,0.18), transparent)' } : { background: 'transparent' }}
@@ -2484,26 +2492,13 @@ const savePhoto = async () => {
                   {etape === 'resultat' && imageTraiteeDisplay && (
                     <motion.div className="min-h-screen flex flex-col relative">
                       {/* Conteneur principal */}
-                      <div className="absolute inset-0 flex items-center justify-center bg-white">
+                      <div className="absolute inset-0 flex items-center justify-center bg-white p-8">
                         {/* Image traitée avec effets de touche finale */}
-                        <div className="relative" style={{ width: '80%', aspectRatio: `${imageDimensions.width}/${imageDimensions.height}` }}>
-                          <img 
-                            src={imageTraiteeDisplay} 
-                            alt="Photo traitée" 
-                            className="w-full h-full object-contain"
-                          />
-                        </div>
-                        
-                        {/* Template par-dessus */}
-                        {selectedTemplate && (
-                          <div className="absolute inset-0 pointer-events-none">
-                            <img 
-                              src={selectedTemplate.url} 
-                              alt="Template" 
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
-                        )}
+                        <img 
+                          src={imageTraiteeDisplay} 
+                          alt="Photo traitée" 
+                          className="max-w-full max-h-full w-auto h-auto object-contain"
+                        />
                       </div>
                       
                       {/* Compteur avant bascule vers l'écran suivant */}
@@ -2525,27 +2520,14 @@ const savePhoto = async () => {
                   transition={{ duration: 0.5 }}
                 >
                   {/* Image traitée en arrière-plan (avec template déjà intégré) */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-white">
+                  <div className="absolute inset-0 flex items-center justify-center bg-white p-8">
                     {/* Image traitée avec effets de touche finale */}
-                    <div className="relative" style={{ width: '80%', aspectRatio: `${imageDimensions.width}/${imageDimensions.height}` }}>
-                      <img 
-                        src={imageTraiteeDisplay || imageTraitee} 
-                        alt="Photo traitée" 
-                        className="w-full h-full object-contain"
-                        onLoad={handleImageLoad}
-                      />
-                    </div>
-                    
-                    {/* Template par-dessus */}
-                    {selectedTemplate && (
-                      <div className="absolute inset-0 pointer-events-none">
-                        <img 
-                          src={selectedTemplate.url} 
-                          alt="Template" 
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                    )}
+                    <img 
+                      src={imageTraiteeDisplay || imageTraitee} 
+                      alt="Photo traitée" 
+                      className="max-w-full max-h-full w-auto h-auto object-contain"
+                      onLoad={handleImageLoad}
+                    />
                   </div>
 
                   {/* Boutons en haut */}
