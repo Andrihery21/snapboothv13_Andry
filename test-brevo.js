@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Récupération de la clé API depuis les variables d'environnement
+
 const brevoApiKey = process.env.BREVO_API_KEY;
 
 if (!brevoApiKey) {
