@@ -3,8 +3,14 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const DEFAULT_API_KEY = "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";
-const brevoApiKey = process.env.BREVO_API_KEY || DEFAULT_API_KEY;
+// Récupération de la clé API depuis les variables d'environnement
+const brevoApiKey = process.env.BREVO_API_KEY;
+
+if (!brevoApiKey) {
+  console.error('❌ BREVO_API_KEY n\'est pas défini dans les variables d\'environnement');
+  console.error('💡 Veuillez créer un fichier .env avec BREVO_API_KEY=votre_clé');
+  process.exit(1);
+}
 
 console.log('🔑 Clé API Brevo:', brevoApiKey.substring(0, 20) + '...');
 console.log('📧 Template ID:', process.env.BREVO_TEMPLATE_ID || '1');

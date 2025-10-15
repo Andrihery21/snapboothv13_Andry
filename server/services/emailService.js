@@ -3,12 +3,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const DEFAULT_API_KEY = "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";
+// Récupération de la clé API depuis les variables d'environnement
+const brevoApiKey = process.env.BREVO_API_KEY;
 
-// Récupération de la clé API
-// Si process.env.BREVO_API_KEY est défini (non-null et non-undefined), on l'utilise.
-// Sinon, on utilise la clé par défaut.
-const brevoApiKey = process.env.BREVO_API_KEY || DEFAULT_API_KEY;
+if (!brevoApiKey) {
+  throw new Error('BREVO_API_KEY n\'est pas défini dans les variables d\'environnement');
+}
 const apiInstance = new brevo.TransactionalEmailsApi();
 apiInstance.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, brevoApiKey);
 

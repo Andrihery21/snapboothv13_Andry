@@ -1,3 +1,8 @@
 node_modules
 config/serverConfig.js
 vite.config.js
+
+# Variables d'environnement
+.env
+.env.local
+.env.*.local
