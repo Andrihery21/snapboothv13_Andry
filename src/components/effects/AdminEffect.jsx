@@ -522,7 +522,7 @@ const AdminEffect = () => {
     dessin: 'dessin',
     univers: 'univers',
     fluxcontext_1: 'fluxcontext_1',
-    fluxcontext2: 'fluxcontext2'
+    nano_banana: 'nano_banana'
   };
 
   // Toggle d'un groupe pour l'onglet actif

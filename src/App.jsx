@@ -20,6 +20,7 @@ import EcranVerticale3Captures from './components/captures/EcranVertical3Capture
 import EcranHorizontale1Captures from './components/captures/EcranHorizontal1Capture';
 import EcranPropsCaptures from './components/captures/EcranPropsCaptures';
 import EcranVideoCaptures from './components/captures/EcranVideoCaptures';
+import EcranImpression from './components/captures/EcranImpression';
 import { useAuthStore } from '../store/auth';
 import { Logger } from '../lib/logger';
 import { ScreenConfigProvider } from './components/admin/screens/ScreenConfigProvider';
@@ -95,6 +96,9 @@ export default function App() {
           <Route path="/photos/grid" element={<PhotoGrid />} />
           <Route path="/event/:eventId/photos" element={<EventPhotosManager />} />
           <Route path="/effects" element={<EffectsConfig />} />
+          
+          {/* Route pour l'écran d'impression */}
+          <Route path="/impression" element={<EcranImpression />} />
           
           {/* Routes pour les écrans de capture */}
           <Route path="/captures/verticale-1" element={<CaptureRouteWrapper screenKey="vertical1" Component={EcranVerticale1Captures} />} />

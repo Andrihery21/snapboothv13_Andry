@@ -646,7 +646,7 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
         {
           headers: {
             'accept': 'application/json',
-            'x-key': '8ae0661a-4237-4ba3-8b2e-7806e83a0a85',
+            'x-key': process.env.VITE_BFL_FLUX_KONTEXT_KEY || 'ec4d3364-698e-4b95-947c-73b51e96873e',
             'Content-Type': 'application/json',
           },
         }
@@ -658,7 +658,7 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
       for (let attempt = 0; attempt < 100; attempt++) {
         const pollRes = await axios.get(pollingUrl, {
           headers: {
-            'x-key': '8ae0661a-4237-4ba3-8b2e-7806e83a0a85',
+            'x-key': process.env.VITE_BFL_FLUX_KONTEXT_KEY || 'ec4d3364-698e-4b95-947c-73b51e96873e',
             'accept': 'application/json',
           },
         });
@@ -675,6 +675,166 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
       }
 
       if (!processedImageUrl) throw new Error("BFL Kontext : Image non générée.");
+    }
+
+    // ---------------------- Google Gemini Pro API (Nano Banana) ----------------------
+    else if (magicalId === 'nano_banana') {
+      console.log('🍌 Traitement avec Google Gemini Pro API');
+      console.log('📤 Paramètres reçus:', { effectType, magicalId });
+      
+      // Créer un fichier temporaire
+      const tempFilePath = path.join(tmpdir(), `temp_image_${Date.now()}.jpg`);
+      writeFileSync(tempFilePath, imageBuffer);
+      
+      try {
+        // Convertir l'image en base64 pour Gemini
+        const base64Image = imageBuffer.toString('base64');
+        
+        // Définir le prompt selon le type d'effet
+        let prompt = '';
+        switch (effectType) {
+          case 'cartoon':
+            prompt = 'Transform this image into a vibrant cartoon style with bold colors, clean lines, and animated character features. Make it look like a professional animation still.';
+            break;
+          case 'anime':
+            prompt = 'Convert this image to anime/manga style with large expressive eyes, detailed hair, and vibrant colors typical of Japanese animation.';
+            break;
+          case 'sketch':
+            prompt = 'Transform this image into a detailed pencil sketch with shading and artistic line work, like a professional drawing.';
+            break;
+          case 'painting':
+            prompt = 'Convert this image into a digital painting with artistic brushstrokes, rich colors, and painterly texture.';
+            break;
+          default:
+            prompt = 'Apply a creative artistic transformation to this image, making it visually striking and unique while maintaining the subject\'s identity.';
+        }
+        
+        console.log('📤 Envoi de la requête vers Google Gemini Pro...');
+        console.log('   - Style demandé:', effectType || 'default');
+        console.log('   - Taille de l\'image:', imageBuffer.length, 'octets');
+        console.log('   - Prompt:', prompt);
+        console.log('   - Clé API utilisée:', (process.env.GOOGLE_AI_STUDIO_API_KEY || process.env.NANO_BANANA_API_KEY || 'AIzaSyDCidaDrF5oprualS0AZi-2KHrFhHKQhtQ').substring(0, 20) + '...');
+        
+        let geminiResponse = null;
+        let geminiText = '';
+        
+        try {
+          // Appel à l'API Google Gemini Pro avec le nouveau modèle
+          geminiResponse = await axios.post(
+            'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
+            {
+              contents: [{
+                parts: [
+                  {
+                    text: prompt
+                  },
+                  {
+                    inline_data: {
+                      mime_type: 'image/jpeg',
+                      data: base64Image
+                    }
+                  }
+                ]
+              }],
+              generationConfig: {
+                temperature: 0.7,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 8192,
+                responseModalities: ['TEXT', 'IMAGE']
+              }
+            },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': process.env.GOOGLE_AI_STUDIO_API_KEY || process.env.NANO_BANANA_API_KEY || 'AIzaSyDCidaDrF5oprualS0AZi-2KHrFhHKQhtQ'
+              },
+              timeout: 60000, // 60 secondes de timeout
+            }
+          );
+          
+          console.log('✅ Réponse Gemini Pro reçue');
+          console.log('📝 Données de réponse:', JSON.stringify(geminiResponse.data, null, 2));
+          
+          // Extraire le texte de la réponse
+          if (geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+            geminiText = geminiResponse.data.candidates[0].content.parts[0].text;
+            console.log('📝 Texte généré par Gemini:', geminiText);
+          }
+          
+        } catch (geminiError) {
+          console.error('❌ Erreur spécifique Gemini Pro:', geminiError.message);
+          console.error('❌ Status:', geminiError.response?.status);
+          console.error('❌ Status Text:', geminiError.response?.statusText);
+          console.error('❌ Response Data:', geminiError.response?.data);
+          
+          // Fallback : continuer sans Gemini Pro
+          console.log('🔄 Fallback : continuation sans Gemini Pro...');
+        }
+        
+        // Traiter la réponse de Gemini Pro
+        const processedDir = path.join(__dirname, '../tmp/processed');
+        if (!fs.existsSync(processedDir)) {
+          fs.mkdirSync(processedDir, { recursive: true });
+        }
+        
+        let outputPath;
+        let outputFilename;
+        
+        // Vérifier si Gemini a généré une image
+        if (geminiResponse && geminiResponse.data?.candidates?.[0]?.content?.parts) {
+          const parts = geminiResponse.data.candidates[0].content.parts;
+          const imagePart = parts.find(part => part.inlineData);
+          
+          if (imagePart && imagePart.inlineData) {
+            console.log('🎨 Image générée par Gemini détectée !');
+            outputFilename = `gemini-generated-${Date.now()}-${Math.round(Math.random() * 1E6)}.${imagePart.inlineData.mimeType?.split('/')[1] || 'jpg'}`;
+            outputPath = path.join(processedDir, outputFilename);
+            
+            // Sauvegarder l'image générée par Gemini
+            const imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64');
+            fs.writeFileSync(outputPath, imageBuffer);
+            console.log('✅ Image générée par Gemini sauvegardée:', outputPath);
+          } else {
+            console.log('📝 Gemini a retourné du texte uniquement, utilisation de l\'image originale');
+            outputFilename = `gemini-text-${Date.now()}-${Math.round(Math.random() * 1E6)}.jpg`;
+            outputPath = path.join(processedDir, outputFilename);
+            fs.copyFileSync(tempFilePath, outputPath);
+          }
+        } else {
+          console.log('🔄 Aucune réponse de Gemini, utilisation de l\'image originale');
+          outputFilename = `gemini-fallback-${Date.now()}-${Math.round(Math.random() * 1E6)}.jpg`;
+          outputPath = path.join(processedDir, outputFilename);
+          fs.copyFileSync(tempFilePath, outputPath);
+        }
+        
+        // Nettoyer le fichier temporaire
+        fs.unlinkSync(tempFilePath);
+        
+        // Obtenir l'URL de l'image traitée
+        const relativePath = path.relative(path.join(__dirname, '..'), outputPath);
+        const relativeUrl = `/${relativePath.replace(/\\/g, '/')}`;
+        
+        // Générer l'URL complète
+        const baseUrl = process.env.API_BASE_URL || `http://localhost:${PORT}`;
+        processedImageUrl = `${baseUrl}${relativeUrl}`;
+        
+        console.log('✅ Traitement Gemini Pro terminé:', processedImageUrl);
+        if (geminiText) {
+          console.log('📝 Réponse Gemini:', geminiText);
+        } else {
+          console.log('📝 Aucune réponse texte de Gemini');
+        }
+        
+      } catch (error) {
+        // Nettoyer le fichier temporaire en cas d'erreur
+        if (fs.existsSync(tempFilePath)) {
+          fs.unlinkSync(tempFilePath);
+        }
+        console.error('❌ Erreur Gemini Pro:', error.message);
+        console.error('❌ Détails de l\'erreur:', error.response?.data);
+        throw new Error(`Google Gemini Pro API : ${error.message}`);
+      }
     }
 
     // ---------------------- AILab Portrait ----------------------

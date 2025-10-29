@@ -232,6 +232,7 @@ export function ScreenConfigProvider({ children, screenId: initialScreenId, even
           univers: data.univers || false,
           fluxcontext_1: data.fluxcontext_1 || false,
           fluxcontext2: data.fluxcontext2 || false,
+          nano_banana: data.nano_banana || false,
           capture_params: { ...DEFAULT_CAPTURE_PARAMS, ...configData.capture_params },
           appearance_params: { ...DEFAULT_APPEARANCE_PARAMS, ...configData.appearance_params },
           advanced_params: { ...DEFAULT_ADVANCED_PARAMS, ...configData.advanced_params },

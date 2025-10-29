@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Plus, Loader2, LogOut, Image, Settings, Camera, Shield, X, Zap, Smartphone, Monitor  } from 'lucide-react';
+import { Calendar, Plus, Loader2, LogOut, Image, Settings, Camera, Shield, X, Zap, Smartphone, Monitor, Printer  } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, createRealtimeSubscription } from '../../lib/supabase';
 import { createEventFolder } from '../../lib/storage';
@@ -427,6 +427,19 @@ useEffect(() => {
                     <Image className="w-4 h-4" />
                     <span>{eventStats[event.id] || 0} photos</span>
                   </div>
+                  {eventStats[event.id] > 0 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/impression?event=${event.id}`);
+                      }}
+                      className="flex items-center space-x-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 py-1 px-3 rounded-full transition-colors"
+                      title="Écran d'impression"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>Imprimer</span>
+                    </button>
+                  )}
                 </div>
               </div>
               

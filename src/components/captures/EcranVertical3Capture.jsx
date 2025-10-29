@@ -42,90 +42,7 @@ const getScreenDimensions = (orientation) => {
     : { width: 1920, height: 1080 };
 };
 
-/* Composant TemplateSelection - NOUVEAU */
-const TemplateSelection = ({ templates, onSelectTemplate, onClose }) => {
-  const { getText } = useTextContent();
-  const [hoveredId, setHoveredId] = useState(null);
-  const [preview, setPreview] = useState(null);
-
-  return (
-    <motion.div className="fixed inset-0 z-50 bg-gradient-to-b from-black/90 to-purple-900/90 flex flex-col items-center justify-center p-4"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-      <div className="max-w-6xl w-full rounded-2xl p-6 relative overflow-hidden"
-           style={{ background: 'radial-gradient(1200px 600px at 10% 10%, rgba(255,255,255,0.08), transparent), radial-gradient(800px 400px at 90% 30%, rgba(168,85,247,0.15), transparent)' }}>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-3xl font-bold text-white">
-            {getText('select_template', 'Sélectionnez un template')}
-          </h2>
-          <button onClick={onClose} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full">{getText('button_close', 'Fermer')}</button>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 max-h-[70vh] overflow-y-auto pr-1">
-          {(templates || []).map((template) => (
-            <motion.button key={template.id}
-              className="group relative bg-white/5 backdrop-blur rounded-2xl overflow-hidden cursor-pointer border border-white/10"
-              onMouseEnter={() => setHoveredId(template.id)}
-              onMouseLeave={() => setHoveredId(null)}
-              onClick={() => onSelectTemplate(template)}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className="relative">
-                <img src={template.url} alt={template.name} className="w-full h-44 object-contain bg-white" />
-                <motion.div
-                  className="absolute inset-0"
-                  animate={hoveredId === template.id ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(126,34,206,0.18), transparent)' } : { background: 'transparent' }}
-                  transition={{ duration: 0.3 }}
-                />
-                <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button type="button" onClick={(e) => { e.stopPropagation(); setPreview(template); }} className="bg-black/60 text-white text-xs px-3 py-1 rounded-full">{getText('preview', 'Aperçu')}</button>
-                </div>
-              </div>
-              <div className="p-3 text-left">
-                <p className="text-white font-medium truncate">{template.name}</p>
-                <p className="text-white/60 text-xs">{getText('tap_to_use', 'Touchez pour utiliser')}</p>
-              </div>
-              <motion.div
-                className="absolute inset-0 pointer-events-none"
-                style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }}
-                animate={hoveredId === template.id ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25)' } : {} }
-              />
-            </motion.button>
-          ))}
-        </div>
-      </div>
-
-      {/* Aperçu plein écran */}
-      <AnimatePresence>
-        {preview && (
-          <motion.div
-            className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-6"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={() => setPreview(null)}
-          >
-            <motion.div
-              className="relative max-w-4xl w-full bg-gradient-to-b from-neutral-900 to-black rounded-2xl overflow-hidden"
-              initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.97 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-4 flex items-center justify-between">
-                <h3 className="text-white text-lg font-semibold">{preview.name}</h3>
-                <div className="flex gap-2">
-                  <button className="bg-white/10 text-white px-4 py-2 rounded-xl" onClick={() => setPreview(null)}>{getText('close', 'Fermer')}</button>
-                  <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl" onClick={() => { onSelectTemplate(preview); setPreview(null); }}>{getText('use', 'Utiliser')}</button>
-                </div>
-              </div>
-              <div className="bg-black/60 flex items-center justify-center">
-                <img src={preview.url} alt={preview.name} className="max-h-[70vh] w-auto object-contain bg-white" />
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-};
-
+/* Composant TemplateSelection - SUPPRIMÉ */
 
 const DEFAULT_FILTER = 'univers';
 
@@ -267,6 +184,99 @@ const TraitementEnCours = ({ message }) => {
   );
 };
 
+// Composant pour choisir entre Mode Normal et Mode Magique
+const ModeSelection = ({ onSelectMode, onCancel, config }) => {
+  const { getText } = useTextContent();
+  const [hovered, setHovered] = useState(null);
+
+  return (
+    <motion.div 
+      className="fixed inset-0 z-50 bg-gradient-to-b from-black/90 to-purple-900/90 flex flex-col items-center justify-center p-6 portrait:p-8 portrait:lg:p-12"
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0 }}
+    >
+      <div className="max-w-5xl portrait:max-w-6xl w-full rounded-2xl p-6 portrait:p-8 portrait:lg:p-12 relative overflow-hidden"
+           style={{ background: 'radial-gradient(1200px 600px at 10% 10%, rgba(255,255,255,0.08), transparent), radial-gradient(800px 400px at 90% 30%, rgba(168,85,247,0.15), transparent)' }}>
+        <div className="flex items-center justify-between mb-6 portrait:mb-8 portrait:lg:mb-12">
+          <div>
+            <h2 className="text-3xl portrait:text-4xl portrait:lg:text-5xl font-bold text-white">{getText('choose_mode', 'Choisissez votre mode')}</h2>
+            <p className="text-base portrait:text-lg portrait:lg:text-xl text-white/70 mt-1 portrait:mt-2">{getText('mode_selection_sub', 'Sélectionnez le type d\'effet que vous souhaitez appliquer')}</p>
+          </div>
+          <button 
+            onClick={onCancel} 
+            className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 portrait:px-6 portrait:py-3 portrait:lg:px-8 portrait:lg:py-4 rounded-xl text-base portrait:text-lg portrait:lg:text-xl"
+          >
+            {getText('button_back', 'Retour')}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6 portrait:gap-8 portrait:lg:gap-12">
+          {/* Mode Magique */}
+          <motion.button
+            className="group relative bg-white/5 backdrop-blur rounded-2xl overflow-hidden cursor-pointer border-2 border-white/10 hover:border-blue-500/50 transition-all"
+            onMouseEnter={() => setHovered('magical')}
+            onMouseLeave={() => setHovered(null)}
+            onClick={() => onSelectMode('magical')}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="relative">
+              <div className="w-full h-64 portrait:h-80 portrait:lg:h-96 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center">
+                <div className="text-center">
+                  <svg className="w-20 h-20 portrait:w-28 portrait:h-28 portrait:lg:w-36 portrait:lg:h-36 mx-auto text-white mb-4 portrait:mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                  </svg>
+                  <p className="text-white text-2xl portrait:text-3xl portrait:lg:text-4xl font-bold">Mode Magique</p>
+                  <p className="text-white/80 text-sm portrait:text-base portrait:lg:text-xl mt-2 portrait:mt-3 px-4">Transformez votre photo avec l'IA</p>
+                </div>
+              </div>
+              <motion.div
+                className="absolute inset-0"
+                animate={hovered === 'magical' ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(59,130,246,0.25), transparent)' } : { background: 'transparent' }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+            <div className="p-4 portrait:p-6 portrait:lg:p-8 text-center bg-gradient-to-b from-blue-600/20 to-transparent">
+              <p className="text-white font-medium text-lg portrait:text-xl portrait:lg:text-2xl">{getText('magical_mode_desc', 'Effets IA créatifs')}</p>
+            </div>
+          </motion.button>
+
+          {/* Mode Normal */}
+          <motion.button
+            className="group relative bg-white/5 backdrop-blur rounded-2xl overflow-hidden cursor-pointer border-2 border-white/10 hover:border-purple-500/50 transition-all"
+            onMouseEnter={() => setHovered('normal')}
+            onMouseLeave={() => setHovered(null)}
+            onClick={() => onSelectMode('normal')}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="relative">
+              <div className="w-full h-64 portrait:h-80 portrait:lg:h-96 bg-gradient-to-br from-purple-600 via-pink-600 to-rose-600 flex items-center justify-center">
+                <div className="text-center">
+                  <svg className="w-20 h-20 portrait:w-28 portrait:h-28 portrait:lg:w-36 portrait:lg:h-36 mx-auto text-white mb-4 portrait:mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-white text-2xl portrait:text-3xl portrait:lg:text-4xl font-bold">Mode Normal</p>
+                  <p className="text-white/80 text-sm portrait:text-base portrait:lg:text-xl mt-2 portrait:mt-3 px-4">Ajoutez une touche finale classique</p>
+                </div>
+              </div>
+              <motion.div
+                className="absolute inset-0"
+                animate={hovered === 'normal' ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(168,85,247,0.25), transparent)' } : { background: 'transparent' }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+            <div className="p-4 portrait:p-6 portrait:lg:p-8 text-center bg-gradient-to-b from-purple-600/20 to-transparent">
+              <p className="text-white font-medium text-lg portrait:text-xl portrait:lg:text-2xl">{getText('normal_mode_desc', 'Filtres et retouches')}</p>
+            </div>
+          </motion.button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 // Composant pour la sélection d'effets magiques
 const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => {
   const { getText } = useTextContent();
@@ -352,19 +362,39 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
     nano_banana: config?.nano_banana,
   };
 
+  console.log('🔍 Screen flags:', screenFlags);
+  console.log('🔍 Config complet:', config);
+
   const activeGroupIds = new Set(
     Object.entries(screenFlags)
       .filter(([, val]) => val === true)
       .map(([key]) => key)
   );
 
+  console.log('🔍 Groupes actifs:', Array.from(activeGroupIds));
+
   // Filtrer les effets magiques selon les groupes actifs
   const groupsFilteredByFlags = MAGICAL_EFFECTS.filter(effect => activeGroupIds.has(effect.id));
+  
+  console.log('🔍 Effets magiques disponibles:', groupsFilteredByFlags);
 
   const availableEffects = config?.magicalEffect
     ? groupsFilteredByFlags.filter(effect => effect.id === config.magicalEffect)
     : groupsFilteredByFlags;
 
+  // Si un seul groupe d'effets est actif, passer directement à la liste d'effets de ce groupe
+  useEffect(() => {
+    if (!loading && availableEffects.length === 1) {
+      const singleEffect = availableEffects[0];
+      // Vérifier qu'il y a au moins un effet dans ce groupe
+      const count = effectCounts[singleEffect.id] || 0;
+      if (count > 0) {
+        console.log('[MagicalEffectSelection] Un seul groupe actif détecté:', singleEffect.id, 'avec', count, 'effet(s)');
+        // Marquer que la sélection de groupe a été sautée
+        onSelectEffect(singleEffect.id, true); // Passer true pour indiquer l'auto-skip
+      }
+    }
+  }, [loading, availableEffects, effectCounts, onSelectEffect]);
 
   return (
     <motion.div className="fixed inset-0 z-50 bg-gradient-to-b from-black/90 to-indigo-900/90 flex flex-col items-center justify-center p-6 portrait:p-8 portrait:lg:p-12"
@@ -379,39 +409,41 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
           <button onClick={onCancel} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 portrait:px-6 portrait:py-3 portrait:lg:px-8 portrait:lg:py-4 rounded-xl text-base portrait:text-lg portrait:lg:text-xl">{getText('button_back', 'Retour')}</button>
         </div>
 
-        <div className="grid grid-cols-2 portrait:grid-cols-2 portrait:lg:grid-cols-3 gap-4 portrait:gap-6 portrait:lg:gap-8 max-h-[70vh] portrait:max-h-[72vh] overflow-y-auto pr-2">
-          {/* Option Sans filtre */}
-          <motion.button
-            key="no-filter"
-            className="group relative bg-white/5 backdrop-blur rounded-2xl overflow-hidden cursor-pointer border border-white/10"
-            onMouseEnter={() => setHovered('no-filter')}
-            onMouseLeave={() => setHovered(null)}
-            onClick={() => onSelectEffect('no-filter')}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className="relative">
-              <div className="w-full h-40 portrait:h-52 portrait:lg:h-72 bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
-                <div className="text-center">
-                  <svg className="w-12 h-12 portrait:w-16 portrait:h-16 portrait:lg:w-24 portrait:lg:h-24 mx-auto text-gray-700 mb-2 portrait:mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <p className="text-gray-700 text-sm portrait:text-base portrait:lg:text-xl font-medium">Original</p>
+        <div className="grid grid-cols-3 gap-4 portrait:gap-6 portrait:lg:gap-8">
+          {/* Option Sans filtre - Afficher seulement s'il y a plusieurs groupes */}
+          {availableEffects.length > 1 && (
+            <motion.button
+              key="no-filter"
+              className="group relative bg-white/5 backdrop-blur rounded-2xl overflow-hidden cursor-pointer border border-white/10"
+              onMouseEnter={() => setHovered('no-filter')}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => onSelectEffect('no-filter')}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="relative">
+                <div className="w-full h-56 portrait:h-64 portrait:lg:h-80 bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
+                  <div className="text-center">
+                    <svg className="w-12 h-12 portrait:w-16 portrait:h-16 portrait:lg:w-24 portrait:lg:h-24 mx-auto text-gray-700 mb-2 portrait:mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-gray-700 text-sm portrait:text-base portrait:lg:text-xl font-medium">Original</p>
+                  </div>
                 </div>
+                <motion.div
+                  className="absolute inset-0"
+                  animate={hovered === 'no-filter' ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(59,130,246,0.18), transparent)' } : { background: 'transparent' }}
+                  transition={{ duration: 0.3 }}
+                />
               </div>
-              <motion.div
-                className="absolute inset-0"
-                animate={hovered === 'no-filter' ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(59,130,246,0.18), transparent)' } : { background: 'transparent' }}
-                transition={{ duration: 0.3 }}
-              />
-            </div>
-            <div className="p-3 portrait:p-4 portrait:lg:p-6 text-left">
-              <p className="text-white font-medium truncate text-base portrait:text-lg portrait:lg:text-2xl">{getText('no_filter', 'Sans filtre')}</p>
-              <p className="text-white/60 text-sm portrait:text-base portrait:lg:text-lg">{getText('tap_to_apply', 'Touchez pour appliquer')}</p>
-            </div>
-            <motion.div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }}
-              animate={hovered === 'no-filter' ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25)' } : {} } />
-          </motion.button>
+              <div className="p-3 portrait:p-4 portrait:lg:p-6 text-left">
+                <p className="text-white font-medium truncate text-base portrait:text-lg portrait:lg:text-2xl">{getText('no_filter', 'Sans filtre')}</p>
+                <p className="text-white/60 text-sm portrait:text-base portrait:lg:text-lg">{getText('tap_to_apply', 'Touchez pour appliquer')}</p>
+              </div>
+              <motion.div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }}
+                animate={hovered === 'no-filter' ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25)' } : {} } />
+            </motion.button>
+          )}
 
           {availableEffects.map((effect) => {
             const count = effectCounts[effect.id] || 0;
@@ -425,7 +457,7 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
                 whileTap={{ scale: 0.98 }}
               >
                 <div className="relative">
-                  <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-40 portrait:h-52 portrait:lg:h-72 object-cover" />
+                  <img src={effect.preview} alt={effect.label || effect.id} className="w-full h-56 portrait:h-64 portrait:lg:h-80 object-cover" />
                   <motion.div
                     className="absolute inset-0"
                     animate={hovered === effect.id ? { background: 'radial-gradient(600px 200px at 50% 50%, rgba(59,130,246,0.18), transparent)' } : { background: 'transparent' }}
@@ -660,27 +692,40 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
 
         let paramsMap = {};
         if (paramsArrayIds.length > 0) {
+          console.log('[MagicalEffectOptions] IDs de params_array à charger:', paramsArrayIds);
           const { data: paramsData, error: paramsError } = await supabase
             .from('params_array')
             .select('id, value')
             .in('id', paramsArrayIds);
 
-          if (!paramsError && paramsData) {
+          if (paramsError) {
+            console.error('[MagicalEffectOptions] Erreur lors du chargement de params_array:', paramsError);
+          } else if (paramsData) {
+            console.log('[MagicalEffectOptions] Données params_array chargées:', paramsData);
             paramsData.forEach(param => {
               paramsMap[param.id] = param.value;
             });
+            console.log('[MagicalEffectOptions] paramsMap construit:', paramsMap);
           }
+        } else {
+          console.log('[MagicalEffectOptions] Aucun paramsArray à charger');
         }
 
         // Convertir les effets Supabase en format d'options pour l'affichage
-        const formattedOptions = matchingType.map((effect) => ({
-          value: effect.paramsArray && paramsMap[effect.paramsArray] 
+        const formattedOptions = matchingType.map((effect) => {
+          const paramValue = effect.paramsArray && paramsMap[effect.paramsArray] 
             ? paramsMap[effect.paramsArray] 
-            : effect.name, // Utiliser la valeur de params_array, sinon le nom
-          label: effect.name, // Utiliser le nom de l'effet comme label
-          image: effect.preview, // Utiliser la preview de Supabase
-          effectData: effect // Garder toutes les données de l'effet
-        }));
+            : effect.name;
+          
+          console.log(`[MagicalEffectOptions] Effet: ${effect.name}, paramsArray ID: ${effect.paramsArray}, valeur finale: ${paramValue}`);
+          
+          return {
+            value: paramValue, // Utiliser la valeur de params_array, sinon le nom
+            label: effect.name, // Utiliser le nom de l'effet comme label
+            image: effect.preview, // Utiliser la preview de Supabase
+            effectData: effect // Garder toutes les données de l'effet
+          };
+        });
         
         console.log('[Style] ===== RÉSULTAT FINAL =====');
         console.log('[Style] Nombre d\'effets affichés:', formattedOptions.length);
@@ -707,7 +752,7 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
           {getText('select_effect_option', 'Choisissez votre style')}
         </h2>
         
-        <div className="grid grid-cols-2 portrait:grid-cols-3 portrait:lg:grid-cols-3 gap-4 portrait:gap-6 portrait:lg:gap-8 max-h-[70vh] portrait:max-h-[72vh] overflow-y-auto pr-2">
+        <div className="grid grid-cols-3 gap-4 portrait:gap-6 portrait:lg:gap-8 max-h-[70vh] portrait:max-h-[72vh] overflow-y-auto pr-2">
           {filteredOptions.map((option) => (
             <motion.div
               key={option.value}
@@ -716,11 +761,13 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
               whileTap={{ scale: 0.95 }}
               onClick={() => onSelectOption(option.value)}
             >
-              <img 
-                src={option.image} 
-                alt={option.label} 
-                className="w-full h-40 portrait:h-56 portrait:lg:h-80 object-cover"
-              />
+              <div className="w-full aspect-[4/3] bg-black flex items-center justify-center overflow-hidden">
+                <img 
+                  src={option.image} 
+                  alt={option.label} 
+                  className="w-full h-full object-contain"
+                />
+              </div>
               <div className="p-3 portrait:p-4 portrait:lg:p-6 text-center">
                 <p className="text-white font-medium text-base portrait:text-lg portrait:lg:text-2xl">{option.label}</p>
               </div>
@@ -742,7 +789,7 @@ const MagicalEffectOptions = ({ effectId, onSelectOption, onCancel, image }) => 
 };
 
 // Composant modal pour partager (Email ou WhatsApp)
-const ShareModal = ({ isOpen, onClose, onSendEmail, onSendWhatsApp, isLoading }) => {
+const ShareModal = ({ isOpen, onClose, onSendEmail, onSendWhatsApp, isLoading, imageUrl }) => {
   const { getText } = useTextContent();
   const [activeTab, setActiveTab] = useState('email'); // 'email' ou 'whatsapp'
   const [email, setEmail] = useState('');
@@ -795,6 +842,7 @@ const ShareModal = ({ isOpen, onClose, onSendEmail, onSendWhatsApp, isLoading })
     onSendWhatsApp(whatsappNumber);
   };
 
+
   const handleClose = () => {
     setEmail('');
     setEmailError('');
@@ -840,33 +888,33 @@ const ShareModal = ({ isOpen, onClose, onSendEmail, onSendWhatsApp, isLoading })
           <button
             type="button"
             onClick={() => setActiveTab('email')}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+            className={`flex-1 py-2 px-3 rounded-lg font-medium transition-all ${
               activeTab === 'email'
                 ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-800'
             }`}
           >
-            <div className="flex items-center justify-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-center gap-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              {getText('email_tab', 'Email')}
+              <span className="text-sm">{getText('email_tab', 'Email')}</span>
             </div>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('whatsapp')}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+            className={`flex-1 py-2 px-3 rounded-lg font-medium transition-all ${
               activeTab === 'whatsapp'
                 ? 'bg-white text-green-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-800'
             }`}
           >
-            <div className="flex items-center justify-center gap-2">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-center gap-1">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
               </svg>
-              {getText('whatsapp_tab', 'WhatsApp')}
+              <span className="text-sm">{getText('whatsapp_tab', 'WhatsApp')}</span>
             </div>
           </button>
         </div>
@@ -975,6 +1023,7 @@ const ShareModal = ({ isOpen, onClose, onSendEmail, onSendWhatsApp, isLoading })
             </div>
           </form>
         )}
+
       </motion.div>
     </motion.div>
   );
@@ -1074,7 +1123,7 @@ export default function EcranVerticale3Captures({ eventId}) {
   const [frameUrl, setFrameUrl] = useState(null);
   const [imgSrc, setImgSrc] = useState(null);
   const [decompte, setDecompte] = useState(null);
-  const [etape, setEtape] = useState('accueil'); // accueil, decompte, validation, magicalEffect, normalEffect, traitement, resultat, qrcode
+  const [etape, setEtape] = useState('accueil'); // accueil, decompte, validation, modeSelection, magicalEffect, normalEffect, traitement, resultat, qrcode
   const [enTraitement, setEnTraitement] = useState(false);
   const [imageTraitee, setImageTraitee] = useState(null);
   const [imageTraiteeDisplay, setImageTraiteeDisplay] = useState(null); // Image avec effets de touche finale pour l'affichage
@@ -1105,13 +1154,13 @@ export default function EcranVerticale3Captures({ eventId}) {
  
   /* NOUVEAUX états pour templates */
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [showTemplateSelection, setShowTemplateSelection] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [imageDimensions, setImageDimensions] = useState({width: 0,height: 0});
 
   
   const [selectedMagicalOption, setSelectedMagicalOption] = useState(null);
   const [showEffectOptions, setShowEffectOptions] = useState(false);
+  const [groupSelectionSkipped, setGroupSelectionSkipped] = useState(false); // Pour savoir si on a sauté la sélection de groupe
   
   // États pour le modal d'envoi par email
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -1243,6 +1292,15 @@ export default function EcranVerticale3Captures({ eventId}) {
     fetchTemplates();
   }, []);
 
+  // useEffect pour appeler savePhoto quand on passe en traitement avec une option sélectionnée
+  // DÉSACTIVÉ: On va plutôt passer la valeur directement à savePhoto
+  // useEffect(() => {
+  //   if (etape === 'traitement' && enTraitement && selectedMagicalOption && !imgSrc) {
+  //     console.log('[useEffect traitement] Déclenchement de savePhoto avec option:', selectedMagicalOption);
+  //     savePhoto();
+  //   }
+  // }, [etape, enTraitement, selectedMagicalOption]);
+
   // Mettre à jour le statut de la station de capture
   useEffect(() => {
     if (eventID && config) {
@@ -1299,7 +1357,7 @@ export default function EcranVerticale3Captures({ eventId}) {
   // Applique les effets de touche finale (sepia, noir et blanc, etc.) à une image pour l'affichage
   const applyFinalTouchEffects = async (imageUrl, normalEffect) => {
     try {
-      if (!imageUrl || !normalEffect || normalEffect === 'normal' || normalEffect === 'v-normal') {
+      if (!imageUrl || !normalEffect || normalEffect === 'normal') {
         return imageUrl; // Pas d'effet à appliquer
       }
 
@@ -1336,6 +1394,36 @@ export default function EcranVerticale3Captures({ eventId}) {
           data[i] = gray;     // Rouge
           data[i + 1] = gray; // Vert
           data[i + 2] = gray; // Bleu
+        }
+        ctx.putImageData(imageData, 0, 0);
+      } else if (normalEffect === 'eclatant') {
+        // Appliquer l'effet Eclatant (contraste et saturation)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        const contrast = 1.4;    // Contraste élevé
+        const saturation = 1.3;  // Saturation augmentée
+        
+        for (let i = 0; i < data.length; i += 4) {
+          let r = data[i];
+          let g = data[i + 1];
+          let b = data[i + 2];
+          
+          // Appliquer le contraste
+          r = (r - 128) * contrast + 128;
+          g = (g - 128) * contrast + 128;
+          b = (b - 128) * contrast + 128;
+          
+          // Appliquer la saturation
+          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          r = gray + (r - gray) * saturation;
+          g = gray + (g - gray) * saturation;
+          b = gray + (b - gray) * saturation;
+          
+          // S'assurer que les valeurs restent dans la plage 0-255
+          data[i] = Math.min(255, Math.max(0, r));
+          data[i + 1] = Math.min(255, Math.max(0, g));
+          data[i + 2] = Math.min(255, Math.max(0, b));
         }
         ctx.putImageData(imageData, 0, 0);
       } else if (normalEffect === 'sepia') {
@@ -1515,71 +1603,81 @@ export default function EcranVerticale3Captures({ eventId}) {
     }, 1000);
   };
   
-  // Fonction pour valider la photo et passer à la sélection d'effet magique
+  // Fonction pour valider la photo et passer à la sélection du mode
   const validerPhoto = () => {
-    // Vérifier si un effet magique est configuré pour cet écran
-    if (config && config.magicalEffect) {
-      // Si un effet magique est déjà configuré, le sélectionner automatiquement
-      setSelectedMagicalEffect(config.magicalEffect);
-      // Passer directement à la sélection d'effet normal
-      setEtape('normalEffect');
-    } else {
-      // Sinon, afficher la sélection d'effet magique
-      setEtape('magicalEffect');
+    // Passer à l'étape de choix du mode (Normal ou Magique)
+    setEtape('modeSelection');
+  };
+  
+  // Fonction pour gérer le choix du mode
+  const choisirMode = (mode) => {
+    if (mode === 'magical') {
+      // Vérifier si un effet magique est configuré pour cet écran
+      if (config && config.magicalEffect) {
+        // Si un effet magique est déjà configuré, le sélectionner automatiquement
+        setSelectedMagicalEffect(config.magicalEffect);
+        
+        // Vérifier si cet effet a des options (vignettes à afficher)
+        // On affiche toujours les options pour que l'utilisateur puisse choisir
+        setShowEffectOptions(true);
+      } else {
+        // Sinon, afficher la sélection d'effet magique
+        setEtape('magicalEffect');
+      }
+    } else if (mode === 'normal') {
+      // Vérifier si un effet normal est configuré pour cet écran
+      if (config && config.normalEffect) {
+        setSelectedNormalEffect(config.normalEffect);
+        setEtape('traitement');
+        setEnTraitement(true);
+        savePhoto();
+      } else {
+        // Sinon, afficher la sélection d'effet normal
+        setEtape('normalEffect');
+      }
     }
   };
   
+  // Fonction pour annuler le choix du mode
+  const annulerChoixMode = () => {
+    setEtape('validation');
+  };
+  
   // Modifiez la fonction selectionnerEffetMagique :
-const selectionnerEffetMagique = (effetId) => {
+const selectionnerEffetMagique = (effetId, autoSkipped = false) => {
   // Gestion spéciale: Sans filtre => pas d'effet magique
   if (effetId === 'no-filter') {
     setSelectedMagicalEffect(null);
     setSelectedMagicalOption(null);
-    // Aller directement à la sélection d'effet normal
-    if (config && config.normalEffect) {
-      setSelectedNormalEffect(config.normalEffect);
-      setEtape('traitement');
-      setEnTraitement(true);
-      savePhoto();
-    } else {
-      setEtape('normalEffect');
-    }
+    setGroupSelectionSkipped(false);
+    // Traiter directement sans effet
+    setEtape('traitement');
+    setEnTraitement(true);
+    savePhoto();
     return;
   }
 
   setSelectedMagicalEffect(effetId);
+  setGroupSelectionSkipped(autoSkipped); // Enregistrer si la sélection a été sautée
   
-  // Vérifier si cet effet a des options
-  if (EFFECTOPTION[effetId] && EFFECTOPTION[effetId].length > 0) {
-    // Afficher les options de cet effet
-    setShowEffectOptions(true);
-  } else {
-    // Pas d'options, passer directement à la sélection d'effet normal
-    if (config && config.normalEffect) {
-      setSelectedNormalEffect(config.normalEffect);
-      setEtape('traitement');
-      setEnTraitement(true);
-      savePhoto();
-    } else {
-      setEtape('normalEffect');
-    }
-  }
+  // Toujours afficher les options (vignettes) pour que l'utilisateur puisse choisir
+  // MagicalEffectOptions charge les options depuis Supabase (effects_api + params_array)
+  setShowEffectOptions(true);
 };
 
 // Ajoutez cette fonction pour gérer la sélection d'option :
 const selectionnerOptionEffet = (optionValue) => {
+  console.log('[selectionnerOptionEffet] Valeur reçue depuis la vignette:', optionValue);
+  console.log('[selectionnerOptionEffet] Type de la valeur:', typeof optionValue);
+  
+  // Définir l'option sélectionnée dans l'état
   setSelectedMagicalOption(optionValue);
   setShowEffectOptions(false);
+  setEtape('traitement');
+  setEnTraitement(true);
   
-  // Passer à la sélection d'effet normal
-  if (config && config.normalEffect) {
-    setSelectedNormalEffect(config.normalEffect);
-    setEtape('traitement');
-    setEnTraitement(true);
-    savePhoto();
-  } else {
-    setEtape('normalEffect');
-  }
+  // Passer la valeur directement à savePhoto pour éviter le problème de setState asynchrone
+  savePhoto(optionValue);
 };
   
   // Fonction pour sélectionner un effet normal et traiter la photo
@@ -1592,12 +1690,12 @@ const selectionnerOptionEffet = (optionValue) => {
   
   // Fonction pour annuler la sélection d'effet magique
   const annulerSelectionEffetMagique = () => {
-    setEtape('validation');
+    setEtape('modeSelection');
   };
   
   // Fonction pour annuler la sélection d'effet normal
   const annulerSelectionEffetNormal = () => {
-    setEtape('magicalEffect');
+    setEtape('modeSelection');
   };
 
 
@@ -1636,16 +1734,7 @@ const selectionnerOptionEffet = (optionValue) => {
   const demarrerPhotobooth = () => {
   if (etape !== 'accueil') return;
   
-  // Si des templates sont disponibles, passer à l'écran de sélection
-  if (templates.length > 0) {
-    setEtape('templateSelection');
-  } else {
-    // Sinon, passer directement au décompte
-    setEtape('decompte');
-    lancerDecompte();
-  }
-};
-const confirmerTemplate = () => {
+  // Passer directement au décompte
   setEtape('decompte');
   lancerDecompte();
 };
@@ -1705,8 +1794,11 @@ const confirmerTemplate = () => {
 
   // Fonction pour sauvegarder la photo
   // Fonction pour sauvegarder la photo
-const savePhoto = async () => {
+const savePhoto = async (magicalOptionOverride = null) => {
   if (!imgSrc) return;
+  
+  // Utiliser la valeur passée en paramètre si disponible, sinon utiliser l'état
+  const effectiveOption = magicalOptionOverride !== null ? magicalOptionOverride : selectedMagicalOption;
   
   setEnTraitement(true);
   
@@ -1810,8 +1902,12 @@ const savePhoto = async () => {
       ctx.drawImage(img, 0, 0);
       
       // Appliquer les effets magiques et normaux
-      console.log(`Application des effets: magique=${selectedMagicalEffect}, normal=${selectedNormalEffect}`);
-      const processedCanvas = await composeEffects(canvas, selectedMagicalEffect, selectedNormalEffect, selectedMagicalOption);
+      console.log(`[savePhoto] Application des effets:`);
+      console.log(`  - magicalEffect: ${selectedMagicalEffect}`);
+      console.log(`  - normalEffect: ${selectedNormalEffect}`);
+      console.log(`  - magicalOption (état): ${selectedMagicalOption}`);
+      console.log(`  - magicalOption (effective): ${effectiveOption}`);
+      const processedCanvas = await composeEffects(canvas, selectedMagicalEffect, selectedNormalEffect, effectiveOption);
       
       // Convertir le canvas traité en blob
       processedBlob = await new Promise(resolve => {
@@ -1976,13 +2072,13 @@ const savePhoto = async () => {
     setSelectedMagicalEffect(null);
     setSelectedNormalEffect(null);
     setSelectedTemplate(null); // Reset aussi le template
+    setGroupSelectionSkipped(false); // Reset l'état de saut de groupe
     setEtape('accueil');
   };
 
    /* NOUVELLES fonctions pour templates */
   const handleSelectTemplate = (template) => {
     setSelectedTemplate(template);
-    setShowTemplateSelection(false);
   };
 
   const removeTemplate = () => {
@@ -2125,14 +2221,7 @@ const savePhoto = async () => {
     />
   )}
 
-  {/* Modal template - NOUVEAU */}
-      {showTemplateSelection && (
-        <TemplateSelection 
-          templates={templates}
-          onSelectTemplate={handleSelectTemplate}
-          onClose={() => setShowTemplateSelection(false)}
-        />
-      )}
+  {/* Modal template - SUPPRIMÉ */}
 
   
       {isLoading ? (
@@ -2311,74 +2400,7 @@ const savePhoto = async () => {
   </AnimatePresence>
 )}
 
-              {/* Nouvel écran de sélection de template */}
-                {etape === 'templateSelection' && (
-                  <motion.div 
-                    className="min-h-screen flex flex-col items-center justify-center bg-black/90"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <div className="max-w-4xl w-full bg-purple-800/90 rounded-xl p-6">
-                      <h2 className="text-3xl font-bold text-white text-center mb-6">
-                        {getText('select_template', 'Sélectionnez un template')}
-                      </h2>
-                      
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto">
-                        {/* Option "Aucun template" */}
-                        <motion.div
-                          className="bg-white/10 rounded-xl overflow-hidden cursor-pointer"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => {
-                            setSelectedTemplate(null);
-                            confirmerTemplate();
-                          }}
-                        >
-                          <div className="w-full h-48 bg-gray-800 flex items-center justify-center">
-                            <span className="text-white text-xl">Aucun template</span>
-                          </div>
-                          <div className="p-3 text-center">
-                            <p className="text-white font-medium">Pas de template</p>
-                          </div>
-                        </motion.div>
-                        
-                        {/* Liste des templates */}
-                        {templates.map((template) => (
-                          <motion.div 
-                            key={template.id}
-                            className="bg-white/10 rounded-xl overflow-hidden cursor-pointer"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                              setSelectedTemplate(template);
-                              confirmerTemplate();
-                            }}
-                          >
-                            <img 
-                              src={template.url} 
-                              alt={template.name} 
-                              className="w-full h-48 object-contain bg-white" 
-                            />
-                            <div className="p-3 text-center">
-                              <p className="text-white font-medium">{template.name}</p>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                      
-                      <div className="mt-8 text-center">
-                        <button 
-                          onClick={() => setEtape('accueil')}
-                          className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-full"
-                        >
-                          {getText('button_back', 'Retour')}
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
+              {/* Écran de sélection de template - SUPPRIMÉ */}
 
               
               {/* Écran de décompte */}
@@ -2419,12 +2441,12 @@ const savePhoto = async () => {
       
                    {/* Template avec fond transparent - positionné au-dessus */}
                     {selectedTemplate && (
-                     <div className="relative z-10 w-full h-full flex items-center justify-center">
+                     <div className="absolute inset-0 z-10 pointer-events-none">
                         <img 
                             src={selectedTemplate.url} 
                             alt="Template sélectionné" 
-                           
-                            className="max-w-full max-h-full object-contain"
+                            className="w-full h-full object-cover"
+                            style={{ minWidth: '100vw', minHeight: '100vh' }}
                           />
                         </div>   
                     
@@ -2463,6 +2485,15 @@ const savePhoto = async () => {
                 </motion.div>
               )}
               
+              {/* Écran de choix du mode (Normal ou Magique) */}
+              {etape === 'modeSelection' && (
+                <ModeSelection 
+                  onSelectMode={choisirMode} 
+                  onCancel={annulerChoixMode}
+                  config={config}
+                />
+              )}
+              
               {/* Écran de sélection d'effets magiques */}
               {etape === 'magicalEffect' && (
                 <MagicalEffectSelection 
@@ -2480,7 +2511,14 @@ const savePhoto = async () => {
               onSelectOption={selectionnerOptionEffet}
               onCancel={() => {
               setShowEffectOptions(false);
-              setEtape('magicalEffect');
+              // Si la sélection de groupe a été sautée, retourner au choix de mode
+              if (groupSelectionSkipped) {
+                setGroupSelectionSkipped(false);
+                setEtape('modeSelection');
+              } else {
+                // Sinon, retourner à la sélection de groupe
+                setEtape('magicalEffect');
+              }
               }}
               image={imgSrc}
               />
@@ -2521,7 +2559,7 @@ const savePhoto = async () => {
                             <img 
                               src={selectedTemplate.url} 
                               alt="Template" 
-                              className="w-full h-full object-contain"
+                              className="w-full h-full object-cover"
                             />
                           </div>
                         )}
@@ -2539,34 +2577,73 @@ const savePhoto = async () => {
               {/* Écran QR Code */}
               {etape === 'qrcode' && (
                 <motion.div 
-                  className="min-h-screen flex flex-col bg-amber-50 relative"
+                  className="min-h-screen flex flex-col relative overflow-hidden"
+                  style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)'
+                  }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.5 }}
                 >
+                  {/* Effet de fond animé */}
+                  <div className="absolute inset-0 overflow-hidden">
+                    <motion.div
+                      className="absolute w-96 h-96 bg-white/10 rounded-full blur-3xl"
+                      animate={{
+                        x: [0, 100, 0],
+                        y: [0, -100, 0],
+                      }}
+                      transition={{
+                        duration: 20,
+                        repeat: Infinity,
+                        ease: "linear"
+                      }}
+                      style={{ top: '10%', left: '10%' }}
+                    />
+                    <motion.div
+                      className="absolute w-96 h-96 bg-purple-300/10 rounded-full blur-3xl"
+                      animate={{
+                        x: [0, -100, 0],
+                        y: [0, 100, 0],
+                      }}
+                      transition={{
+                        duration: 15,
+                        repeat: Infinity,
+                        ease: "linear"
+                      }}
+                      style={{ bottom: '10%', right: '10%' }}
+                    />
+                  </div>
+
                   {/* Image traitée en arrière-plan (avec template déjà intégré) */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-white">
+                  <div className="absolute inset-0 flex items-center justify-center z-10">
                     {/* Image traitée avec effets de touche finale */}
-                    <div className="relative" style={{ width: '80%', aspectRatio: `${imageDimensions.width}/${imageDimensions.height}` }}>
+                    <motion.div 
+                      className="relative shadow-2xl rounded-2xl overflow-hidden border-4 border-white/30"
+                      style={{ width: '70%', aspectRatio: `${imageDimensions.width}/${imageDimensions.height}` }}
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.2, type: "spring" }}
+                    >
                       <img 
                         src={imageTraiteeDisplay || imageTraitee} 
                         alt="Photo traitée" 
-                        className="w-full h-full object-contain"
+                        className="w-full h-full object-contain bg-white"
                         onLoad={handleImageLoad}
                       />
-                    </div>
-                    
-                    {/* Template par-dessus */}
-                    {selectedTemplate && (
-                      <div className="absolute inset-0 pointer-events-none">
-                        <img 
-                          src={selectedTemplate.url} 
-                          alt="Template" 
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                    )}
+                      
+                      {/* Template par-dessus */}
+                      {selectedTemplate && (
+                        <div className="absolute inset-0 pointer-events-none">
+                          <img 
+                            src={selectedTemplate.url} 
+                            alt="Template" 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                    </motion.div>
                   </div>
 
                   {/* Boutons en haut */}
@@ -2597,75 +2674,89 @@ const savePhoto = async () => {
                   </div>
                   
                   {/* QR Code en bas à droite */}
-                  <div className="absolute bottom-6 right-6 flex flex-col items-end z-10">
+                  <div className="absolute bottom-8 right-8 flex flex-col items-end z-20">
                     <motion.div 
-                      className="bg-white p-4 rounded-xl shadow-lg mb-4"
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.3 }}
+                      className="bg-white p-6 rounded-2xl shadow-2xl mb-4 border-4 border-purple-300"
+                      initial={{ scale: 0.8, rotate: -5 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ delay: 0.3, type: "spring" }}
                     >
                       <QRCode 
                         value={qrTargetUrl || ''}
                         imageUrl={qrTargetUrl}
                         showQROnly={true} 
-                        size={180} 
-                        qrColor="#7e22ce"
-                        bgColor="#fef3c7"
+                        size={200} 
+                        qrColor="#6b21a8"
+                        bgColor="#ffffff"
                       />
                     </motion.div> 
-                    <motion.p 
-                      className="text-right text-purple-800 font-medium text-xl"
+                    <motion.div
+                      className="bg-white/95 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg"
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.4 }}
                     >
-                      {getText('scan_qr_text', 'Scannez le QR code')}
-                    </motion.p>
+                      <p className="text-purple-900 font-bold text-lg flex items-center gap-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                        </svg>
+                        {getText('scan_qr_text', 'Scannez le QR code')}
+                      </p>
+                    </motion.div>
                   </div>
                   
                   {/* Texte informatif en bas */}
                   <motion.div 
-                    className="absolute bottom-16 left-0 right-0 text-center px-6 z-10"
+                    className="absolute bottom-24 left-0 right-0 text-center px-6 z-10"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.5 }}
                   >
-                    
-                    <p className="text-gray-700 mb-2 text-lg font-medium">
-                      {getText('qr_instruction', 'Pour télécharger ou imprimer votre photo:')}
-                    </p>
-                    <p className="text-gray-600">
-                      {getText('qr_website', 'Rendez-vous sur snapbooth.com ou scannez le QR code')}
-                    </p>
+                    <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 max-w-2xl mx-auto shadow-xl border-2 border-white/50">
+                      <p className="text-purple-900 mb-3 text-xl font-bold flex items-center justify-center gap-2">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {getText('qr_instruction', 'Pour télécharger ou imprimer votre photo:')}
+                      </p>
+                      <p className="text-purple-700 text-lg">
+                        {getText('qr_website', 'Rendez-vous sur snapbooth.com ou scannez le QR code')}
+                      </p>
+                    </div>
                   </motion.div>
                   
                   {/* Pied de page avec date et minuteur */}
                   <div className="absolute bottom-4 left-0 right-0 text-center z-10">
                     <motion.div
-                      className="text-sm text-gray-600"
+                      className="bg-white/80 backdrop-blur-sm rounded-xl p-4 max-w-md mx-auto shadow-lg"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.6 }}
                     >
                       {/* Date de l'événement */}
-                      <p>{new Date().toLocaleDateString('fr-FR', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}</p>
+                      <p className="text-purple-900 font-semibold mb-2">
+                        {new Date().toLocaleDateString('fr-FR', { 
+                          weekday: 'long', 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
+                      </p>
                       
                       {/* Minuteur pour le retour automatique */}
                       <div className="mt-2">
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div className="w-full bg-purple-200 rounded-full h-3 overflow-hidden">
                           <motion.div 
-                            className="bg-purple-600 h-2.5 rounded-full" 
+                            className="bg-gradient-to-r from-purple-600 to-pink-500 h-3 rounded-full" 
                             initial={{ width: "100%" }}
                             animate={{ width: "0%" }}
                             transition={{ duration: qrCodeTimeRemaining, ease: "linear" }}
                           />
                         </div>
-                        <p className="text-xs mt-1">
+                        <p className="text-sm mt-2 text-purple-700 font-medium flex items-center justify-center gap-1">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
                           {getText('auto_return', 'Retour automatique dans')} {Math.floor(qrCodeTimeRemaining / 60)}:
                           {(qrCodeTimeRemaining % 60).toString().padStart(2, '0')}
                         </p>
@@ -2703,6 +2794,7 @@ const savePhoto = async () => {
                 onSendEmail={handleSendEmail}
                 onSendWhatsApp={handleSendWhatsApp}
                 isLoading={isEmailSending}
+                imageUrl={imageTraiteeDisplay || imageTraitee}
               />
             )}
           </AnimatePresence>

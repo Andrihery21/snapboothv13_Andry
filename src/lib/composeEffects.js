@@ -4,8 +4,8 @@
  */
 
 import { supabase } from './supabase'; // Importation de l'instance Supabase configurée
-import { applyCartoon, applyUnivers, applyDessin, applyCaricature, applyIaKontext } from './magical';
-import { applyNormal, applyGlowUp, applyBW } from './normal';
+import { applyCartoon, applyUnivers, applyDessin, applyCaricature, applyIaKontext, applyNanoBanana } from './magical';
+import { applyNormal, applyGlowUp, applyBW, applyEclatant } from './normal';
 
 // Mapping des identifiants d'effets vers les fonctions d'application
 const MAGICAL_MAP = {
@@ -13,14 +13,15 @@ const MAGICAL_MAP = {
   univers: applyUnivers,
   dessin: applyDessin,
   caricature: applyCaricature,
-  fluxcontext_1:applyIaKontext
+  fluxcontext_1:applyIaKontext,
+  nano_banana: applyNanoBanana
 };
 
 const NORMAL_MAP = {
   normal: applyNormal,
   'noir-et-blanc': applyBW,
   'glow-up': applyGlowUp,
-  'v-normal': applyNormal,
+  'eclatant': applyEclatant,
 };
 
 /**
@@ -88,9 +89,9 @@ export const NORMAL_EFFECTS = [
     preview: 'https://azafzikvwdartavmpwsc.supabase.co/storage/v1/object/public/assets/Noir%20et%20blanc/Cartoon%20yourself-Animation%203D.webp'
   },
   { 
-    id: 'v-normal', 
-    name: 'Vertical Normal', 
-    description: 'Photo normale en format vertical',
+    id: 'eclatant', 
+    name: 'Eclatant', 
+    description: 'Augmente le contraste et la saturation',
     preview: 'https://azafzikvwdartavmpwsc.supabase.co/storage/v1/object/public/assets/Noir%20et%20blanc/Cartoon%20yourself-Animation%203D.webp'
   }
 ];
