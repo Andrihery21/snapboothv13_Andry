@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { notify } from '../../../lib/notifications';
 import { Logger } from '../../../lib/logger';
+import { SERVER_CONFIG } from '../../../config/serverConfig';
 
 const logger = new Logger('EcranImpression');
 
@@ -24,6 +25,7 @@ export default function EcranImpression() {
     dnp620: { connected: false, status: 'Déconnecté' },
     dx1n: { connected: false, status: 'Déconnecté' }
   });
+  const [isPrinting, setIsPrinting] = useState(false);
 
   // Déterminer si une photo est en orientation verticale ou horizontale
   const getPhotoOrientation = (photo) => {
@@ -176,12 +178,52 @@ export default function EcranImpression() {
     };
   }, [eventId, fetchEventInfo, fetchPhotos]);
 
+  useEffect(() => {
+    let interval;
+    async function pollPrinterStatus() {
+      try {
+        // DNP DS620
+        const res620 = await fetch(`${SERVER_CONFIG.BASE_URL}/printer-status?printerName=DNP DS620`);
+        const data620 = await res620.json();
+        // DX1N
+        const resDx1n = await fetch(`${SERVER_CONFIG.BASE_URL}/printer-status?printerName=DX1N`);
+        const dataDx1n = await resDx1n.json();
+        setPrinterStatus(prev => ({
+          ...prev,
+          dnp620: {
+            connected: data620.status === 'Prêt',
+            status: data620.status
+          },
+          dx1n: {
+            connected: dataDx1n.status === 'Prêt',
+            status: dataDx1n.status
+          }
+        }));
+      } catch (err) {
+        setPrinterStatus(prev => ({
+          ...prev,
+          dnp620: {
+            connected: false,
+            status: 'Déconnecté'
+          },
+          dx1n: {
+            connected: false,
+            status: 'Déconnecté'
+          }
+        }));
+      }
+    }
+    pollPrinterStatus();
+    interval = setInterval(pollPrinterStatus, 3000);
+    return () => clearInterval(interval);
+  }, []); // Lance à l'ouverture du composant
+
   const handlePrintPhoto = (photo) => {
     setSelectedPhoto(photo);
     setShowPrinterPopup(true);
   };
 
-  const handleConfirmPrint = () => {
+  const handleConfirmPrint = async () => {
     if (!selectedPrinter || !selectedPhoto) return;
     
     logger.info('Impression de la photo', { 
@@ -189,72 +231,37 @@ export default function EcranImpression() {
       printer: selectedPrinter 
     });
     
-    // Créer une page d'impression optimisée avec les paramètres spécifiques
-    const printWindow = window.open('', '_blank');
-    
-    if (printWindow) {
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="UTF-8">
-            <title>Impression Photo - ${selectedPrinter}</title>
-            <style>
-              @page {
-                size: 4in 6in; /* 10cm x 15cm */
-                margin: 0;
-              }
-              
-              * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-              }
-              
-              body {
-                margin: 0;
-                padding: 0;
-                width: 100%;
-                height: 100%;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-              }
-              
-              img {
-                max-width: 100%;
-                max-height: 100%;
-                width: auto;
-                height: auto;
-                object-fit: contain;
-              }
-              
-              @media print {
-                body {
-                  width: 4in;
-                  height: 6in;
-                }
-              }
-            </style>
-          </head>
-          <body>
-            <img src="${selectedPhoto.url}" alt="Photo à imprimer" onload="window.print();" />
-          </body>
-        </html>
-      `);
-      
-      printWindow.document.close();
-      
-      // Déclencher l'impression automatiquement après le chargement
-      printWindow.onload = () => {
-        setTimeout(() => {
-          printWindow.print();
-        }, 500);
-      };
+    // Si DNP DS620: impression silencieuse via serveur
+    if (selectedPrinter === 'dnp620') {
+      try {
+        setIsPrinting(true);
+        const res = await fetch(`${SERVER_CONFIG.BASE_URL}/print-photo`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            photoUrl: selectedPhoto.url,
+            printerName: 'DNP DS620',
+            paperSize: 'A5',
+            copies: 1,
+            landscape: false
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || !data?.success) {
+          throw new Error(data?.error || 'Impression silencieuse échouée');
+        }
+        notify.success('Impression envoyée à la DNP DS620');
+        setIsPrinting(false);
+        setShowPrinterPopup(false);
+        setSelectedPrinter('');
+      } catch (e) {
+        logger.error('Erreur impression silencieuse', e);
+        notify.error("Erreur lors de l'impression, veuillez vérifier si DNP DS 620 est bien connectée");
+        setIsPrinting(false);
+      }
+    } else {
+      notify.error('Impression silencieuse non supportée pour cette imprimante.');
     }
-    
-    setShowPrinterPopup(false);
-    setSelectedPrinter('');
   };
 
 
@@ -686,14 +693,26 @@ export default function EcranImpression() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleConfirmPrint}
-                  disabled={!selectedPrinter}
-                  className={`flex-1 px-4 py-3 rounded-xl transition-all font-medium ${
-                    selectedPrinter
+                  disabled={!selectedPrinter || isPrinting}
+                  className={`flex-1 px-4 py-3 rounded-xl transition-all font-bold flex items-center justify-center space-x-2 ${
+                    selectedPrinter && !isPrinting
                       ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white'
-                      : 'bg-white/10 text-white/50 cursor-not-allowed'
+                      : isPrinting
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white animate-pulse cursor-wait'
+                        : 'bg-white/10 text-white/50 cursor-not-allowed'
                   }`}
                 >
-                  Imprimer
+                  {isPrinting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Impression en cours…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Printer className="w-5 h-5" />
+                      <span>Imprimer</span>
+                    </>
+                  )}
                 </motion.button>
               </div>
             </motion.div>

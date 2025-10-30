@@ -19,6 +19,7 @@ const AddEffectPopup = ({
     preview: '',
     paramsArray: [{ name: '', value: '' }]
   });
+  const [referenceImageUrl, setReferenceImageUrl] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -147,7 +148,8 @@ const AddEffectPopup = ({
       if (filteredParams.length > 0) {
         const paramsToInsert = filteredParams.map(param => ({
           name: param.name,
-          value: param.value
+          value: param.value,
+          reference_image_url: param.reference_image_url || (param.name === 'reference_image_url' ? (param.value || '') : null)
         }));
         
         // Insérer les paramètres et récupérer leurs IDs
@@ -211,9 +213,16 @@ const AddEffectPopup = ({
       }
       
       // Préparer les données avec l'URL de l'image
+      // et injecter le champ Image de référence pour l'onglet caricature
+      let paramsArray = Array.isArray(newEffect.paramsArray) ? [...newEffect.paramsArray] : [];
+      if (activeEffectType === 'caricature' && referenceImageUrl && referenceImageUrl.trim() !== '') {
+        paramsArray.push({ name: 'reference_image_url', value: referenceImageUrl.trim(), reference_image_url: referenceImageUrl.trim() });
+      }
       const effectData = {
         ...newEffect,
         previewUrl
+        ,
+        paramsArray
       };
       
       // Enregistrer l'effet et ses paramètres dans Supabase
@@ -364,6 +373,18 @@ const AddEffectPopup = ({
             <div className="bg-gray-100 dark:bg-gray-900 p-3 rounded-md mb-3">
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-0">Ces paramètres seront envoyés à l'API lors de la requête</p>
             </div>
+            {activeEffectType === 'caricature' && (
+              <div className="flex flex-col gap-2 mb-3 border border-gray-200 dark:border-gray-700 p-2 rounded-md">
+                <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Image de référence:</label>
+                <input
+                  type="text"
+                  value={referenceImageUrl}
+                  onChange={(e) => setReferenceImageUrl(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                  placeholder="https://... (URL publique)"
+                />
+              </div>
+            )}
             {(newEffect.paramsArray || []).map((param, index) => (
               <div key={index} className="flex flex-col sm:flex-row gap-2 mb-3 border border-gray-200 dark:border-gray-700 p-2 rounded-md">
                 <div className="w-full sm:w-auto sm:flex-1">

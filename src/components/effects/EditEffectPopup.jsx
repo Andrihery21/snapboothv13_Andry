@@ -15,6 +15,14 @@ const EditEffectPopup = ({
     ...effect,
     newParamsArray: effect.paramsArray ? [...effect.paramsArray] : []
   });
+  const [referenceImageUrl, setReferenceImageUrl] = useState(() => {
+    try {
+      const ref = (effect.paramsArray || []).find(p => p && (p.name === 'reference_image_url' || p.key === 'reference_image_url'));
+      return ref ? (ref.value || '') : '';
+    } catch (_) {
+      return '';
+    }
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const resizeImage = (file) => {
@@ -129,7 +137,8 @@ const EditEffectPopup = ({
     if (filteredParams.length > 0) {
       const paramsToInsert = filteredParams.map(param => ({
         name: param.name,
-        value: param.value || '' // Valeur par défaut si undefined
+        value: param.value || '', // Valeur par défaut si undefined
+        reference_image_url: param.reference_image_url || (param.name === 'reference_image_url' ? (param.value || '') : null)
       }));
       
         
@@ -181,7 +190,14 @@ const EditEffectPopup = ({
     
     try {
       setIsLoading(true);
-      const updatedEffect = await updateEffectInSupabase(editedEffect);
+      // Injecter le paramètre spécifique pour l'onglet caricature si présent
+      let payload = { ...editedEffect };
+      if (activeEffectType === 'caricature' && referenceImageUrl && referenceImageUrl.trim() !== '') {
+        const nextParams = Array.isArray(payload.newParamsArray) ? [...payload.newParamsArray] : [];
+        nextParams.push({ name: 'reference_image_url', value: referenceImageUrl.trim(), reference_image_url: referenceImageUrl.trim() });
+        payload.newParamsArray = nextParams;
+      }
+      const updatedEffect = await updateEffectInSupabase(payload);
       onSave(updatedEffect);
     //   notify('success', 'Effet mis à jour avec succès');
       onClose();
@@ -307,6 +323,18 @@ const EditEffectPopup = ({
             <div className="bg-gray-100 dark:bg-gray-900 p-3 rounded-md mb-3">
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-0">Ces paramètres seront envoyés à l'API lors de la requête</p>
             </div>
+            {activeEffectType === 'caricature' && (
+              <div className="flex flex-col gap-2 mb-3 border border-gray-200 dark:border-gray-700 p-2 rounded-md">
+                <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Image de référence:</label>
+                <input
+                  type="text"
+                  value={referenceImageUrl}
+                  onChange={(e) => setReferenceImageUrl(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                  placeholder="https://... (URL publique)"
+                />
+              </div>
+            )}
             {(editedEffect.newParamsArray || []).map((param, index) => (
               <div key={index} className="flex flex-col sm:flex-row gap-2 mb-3 border border-gray-200 dark:border-gray-700 p-2 rounded-md">
                 <div className="w-full sm:w-auto sm:flex-1">

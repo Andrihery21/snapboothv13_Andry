@@ -16,6 +16,8 @@ import { supabase } from './lib/supabase.js';
 // import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import { sendPhotoEmail, downloadImageAsBuffer } from './services/emailService.js';
+import PDFDocument from 'pdfkit';
+import { print as printPDF } from 'pdf-to-printer';
 
 
 
@@ -535,11 +537,15 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
       const imageUrl = publicUrlData.publicUrl;
       console.log(`Image téléchargée avec succès. URL Supabase: ${imageUrl}`);
       
+      // Récupérer styleImageUrl depuis le body (chargé côté client depuis params_array.reference_image_url)
+      const styleImageUrlFromBody = (req.body && (req.body.reference_image_url || req.body.styleImageUrl)) || "";
+      console.log("LightX: styleImageUrl reçu:", styleImageUrlFromBody);
+
       const response = await axios.post(
         'https://api.lightxeditor.com/external/api/v1/caricature',
         {
           imageUrl: imageUrl, // Vrai URL 
-          styleImageUrl: "",
+          styleImageUrl: styleImageUrlFromBody,
           textPrompt: effectType,
         },
         {
@@ -1042,6 +1048,7 @@ app.get('/', (req, res) => {
             '/save-capture': 'Sauvegarder une capture',
             '/save-processed': 'Sauvegarder une image traitée',
             '/send-photo-email': 'Envoyer une photo par email',
+            '/print-photo': 'Impression silencieuse PDF A5',
             '/photos/*': 'Accéder aux images'
         }
     });
@@ -1053,4 +1060,109 @@ const HOST = SERVER_CONFIG.HOST;
 app.listen(PORT, HOST, () => {
     console.log(`Serveur démarré sur http://${HOST}:${PORT}`);
     console.log('Dossier photos:', path.join(__dirname, '../photos'));
+});
+
+// Impression silencieuse d'une image en PDF A5 vers une imprimante donnée
+app.post('/print-photo', async (req, res) => {
+  try {
+    const { photoUrl, printerName = 'DNP DS620', copies = 1, paperSize = 'A5', landscape = false } = req.body || {};
+
+    if (!photoUrl) {
+      return res.status(400).json({ success: false, error: 'photoUrl requis' });
+    }
+
+    // Télécharger l'image
+    const response = await fetch(photoUrl);
+    if (!response.ok) {
+      return res.status(400).json({ success: false, error: 'Téléchargement image échoué' });
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    // Préparer fichiers temporaires
+    const tempDir = path.join(tmpdir());
+    const imgPath = path.join(tempDir, `print_${Date.now()}.jpg`);
+    const pdfPath = path.join(tempDir, `print_${Date.now()}.pdf`);
+    fs.writeFileSync(imgPath, buffer);
+
+    try {
+      // Générer un PDF A5
+      await new Promise((resolve, reject) => {
+        const doc = new PDFDocument({ size: paperSize, layout: landscape ? 'landscape' : 'portrait', margin: 0 });
+        const stream = fs.createWriteStream(pdfPath);
+        doc.pipe(stream);
+        // Remplir toute la page en conservant les proportions
+        try {
+          const pageWidth = doc.page.width;
+          const pageHeight = doc.page.height;
+          doc.image(imgPath, 0, 0, { width: pageWidth, height: pageHeight, align: 'center', valign: 'center' });
+        } catch (e) {
+          // fallback simple
+          doc.image(imgPath, 0, 0, { fit: [doc.page.width, doc.page.height], align: 'center', valign: 'center' });
+        }
+        doc.end();
+        stream.on('finish', resolve);
+        stream.on('error', reject);
+      });
+
+      // Envoyer à l'imprimante sans dialogue
+      for (let i = 0; i < Math.max(1, Number(copies)); i++) {
+        await printPDF(pdfPath, {
+          printer: printerName,
+          paperSize,
+          win32: []
+        });
+      }
+
+      return res.json({ success: true });
+    } finally {
+      // Nettoyer
+      try { fs.existsSync(imgPath) && fs.unlinkSync(imgPath); } catch {}
+      try { fs.existsSync(pdfPath) && fs.unlinkSync(pdfPath); } catch {}
+    }
+  } catch (error) {
+    console.error('Erreur impression:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Erreur impression' });
+  }
+});
+
+// Statut imprimante physique (DNP DS620)
+app.get('/printer-status', async (req, res) => {
+  try {
+    const { printerName = 'DNP DS620' } = req.query;
+    // PowerShell pour lister toutes les imprimantes et leur statut
+    const { exec } = require('child_process');
+    exec(`powershell -Command "Get-Printer | Select-Object Name, PrinterStatus | ConvertTo-Json"`, (err, stdout, stderr) => {
+      if (err || !stdout) {
+        res.status(500).json({ status: 'Déconnecté', error: 'Impossible de lire la liste des imprimantes.' });
+        return;
+      }
+      let printers = [];
+      try {
+        printers = JSON.parse(stdout);
+      } catch (e) {}
+      let found = false;
+      let ready = false;
+      if (Array.isArray(printers)) {
+        for(const p of printers) {
+          if ((p.Name || '').trim().toLowerCase() === printerName.trim().toLowerCase()) {
+            found = true;
+            ready = (p.PrinterStatus === 3); // 3 = Prêt
+            break;
+          }
+        }
+      } else if (printers && printers.Name) {
+        if ((printers.Name || '').trim().toLowerCase() === printerName.trim().toLowerCase()) {
+          found = true;
+          ready = (printers.PrinterStatus === 3);
+        }
+      }
+      res.json({
+        status: found ? (ready ? 'Prêt' : 'Indisponible') : 'Déconnecté',
+        found,
+        raw: printers
+      });
+    });
+  } catch(e) {
+    res.status(500).json({ status: 'Déconnecté', error: 'Erreur interne statut imprimante.' });
+  }
 });
