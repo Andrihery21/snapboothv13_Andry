@@ -17,7 +17,8 @@ import { supabase } from './lib/supabase.js';
 import { v4 as uuidv4 } from 'uuid';
 import { sendPhotoEmail, downloadImageAsBuffer } from './services/emailService.js';
 import PDFDocument from 'pdfkit';
-import { print as printPDF } from 'pdf-to-printer';
+import pkg from 'pdf-to-printer';
+const { print: printPDF } = pkg;
 
 
 
