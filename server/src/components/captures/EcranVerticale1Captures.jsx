@@ -352,6 +352,7 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
     univers: config?.univers,
     fluxcontext_1: config?.fluxcontext_1,
     nano_banana: config?.nano_banana,
+    bg_removal: config?.bg_removal,
   };
 
   const activeGroupIds = new Set(

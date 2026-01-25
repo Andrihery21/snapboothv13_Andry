@@ -55,7 +55,8 @@ const AdminEffect = () => {
   dessin: false,
   univers: false,
   fluxcontext_1: false,
-  nano_banana: false
+  nano_banana: false,
+  bg_removal: false
   });
   
   // Types d'effets disponibles
@@ -65,7 +66,8 @@ const AdminEffect = () => {
   { id: 'dessin', label: 'Dessin', icon: '✏️' },
   { id: 'univers', label: 'Univers', icon: '🌌' },
   { id: 'fluxcontext_1', label: 'Flux Kontext 1', icon: '⭐' },
-  { id: 'nano_banana', label: 'Nano Banana', icon: '🍌' }
+  { id: 'nano_banana', label: 'Nano Banana', icon: '🍌' },
+  { id: 'bg_removal', label: 'BG Removal', icon: '🖼️' }
   ];
   
   // Charger les effets depuis la configuration
@@ -76,7 +78,7 @@ const AdminEffect = () => {
         if (!config?.id) return;
         const { data, error } = await supabase
           .from('screens')
-          .select('cartoon, caricature, dessin, univers, fluxcontext_1, nano_banana')
+          .select('cartoon, caricature, dessin, univers, fluxcontext_1, nano_banana, bg_removal')
           .eq('id', config.id)
           .single();
         if (error) throw error;
@@ -87,7 +89,8 @@ const AdminEffect = () => {
             dessin: !!data.dessin,
             univers: !!data.univers,
             fluxcontext_1: !!data.fluxcontext_1,
-            nano_banana: !!data.nano_banana
+            nano_banana: !!data.nano_banana,
+            bg_removal: !!data.bg_removal
           });
         }
       } catch (e) {
@@ -154,7 +157,8 @@ const AdminEffect = () => {
             dessin: [],
             univers: [],
             fluxcontext_1: [],  
-            fluxcontext2: []   
+            fluxcontext2: [],
+            bg_removal: []   
           };
 
         // Garder trace des effets visibles
@@ -505,7 +509,8 @@ const AdminEffect = () => {
           }
         ],
          fluxcontext_1: [],
-         fluxcontext2: []  
+         fluxcontext2: [],
+         bg_removal: []  
       };
       setEffects(defaultEffects);
     }
@@ -522,7 +527,8 @@ const AdminEffect = () => {
     dessin: 'dessin',
     univers: 'univers',
     fluxcontext_1: 'fluxcontext_1',
-    nano_banana: 'nano_banana'
+    nano_banana: 'nano_banana',
+    bg_removal: 'bg_removal'
   };
 
   // Toggle d'un groupe pour l'onglet actif
@@ -788,7 +794,8 @@ const AdminEffect = () => {
       dessin: [],
       univers: [],
       fluxcontext_1: [],  
-      nano_banana: []   
+      nano_banana: [],
+      bg_removal: []   
     };
 
     const visibleEffects = [];

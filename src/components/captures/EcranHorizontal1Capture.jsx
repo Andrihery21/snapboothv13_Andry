@@ -360,6 +360,7 @@ const MagicalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => 
     univers: config?.univers,
     fluxcontext_1: config?.fluxcontext_1,
     nano_banana: config?.nano_banana,
+    bg_removal: config?.bg_removal,
   };
 
   console.log('🔍 Screen flags:', screenFlags);
@@ -1698,7 +1699,32 @@ const selectionnerOptionEffet = (optionValue) => {
     setEtape('modeSelection');
   };
 
-
+  // Fonction pour forcer la focale la plus courte (zoom minimal)
+  const configureWebcamZoom = (stream) => {
+    if (!stream || !stream.getVideoTracks) return;
+    
+    const videoTracks = stream.getVideoTracks();
+    if (videoTracks.length === 0) return;
+    
+    const videoTrack = videoTracks[0];
+    if (!videoTrack || !('getCapabilities' in videoTrack)) return;
+    
+    try {
+      const capabilities = videoTrack.getCapabilities();
+      if (capabilities && 'zoom' in capabilities) {
+        const minZoom = capabilities.zoom.min || 0;
+        
+        // Appliquer le zoom minimal via les contraintes
+        videoTrack.applyConstraints({ 
+          advanced: [{ zoom: minZoom }] 
+        }).catch(err => {
+          console.warn("Impossible d'appliquer les contraintes de zoom:", err);
+        });
+      }
+    } catch (err) {
+      console.warn("Erreur lors de la configuration du zoom:", err);
+    }
+  };
 
   // Initialiser la webcam
   // useEffect(() => {
@@ -2334,15 +2360,32 @@ const savePhoto = async (magicalOptionOverride = null) => {
             screenshotHeight={SCREEN_HEIGHT}
             forceScreenshotSourceSize={true}
             videoConstraints={{
-              width: SCREEN_WIDTH,
-              height: SCREEN_HEIGHT,
               facingMode: "user",
-              aspectRatio: SCREEN_WIDTH / SCREEN_HEIGHT
+              ...(orientation === 'portrait' || orientation === 'vertical' 
+                ? {
+                    // En portrait, utiliser toute la surface du capteur sans contraintes de taille fixes
+                    // Laisser la caméra utiliser sa résolution native maximale sans crop
+                    width: { ideal: 1920, min: 640 },
+                    height: { ideal: 1080, min: 480 }
+                    // Pas d'aspectRatio pour permettre à la caméra d'utiliser toute sa surface
+                  }
+                : {
+                    // En paysage, garder les contraintes originales
+                    width: SCREEN_WIDTH,
+                    height: SCREEN_HEIGHT,
+                    aspectRatio: SCREEN_WIDTH / SCREEN_HEIGHT
+                  }),
+              // Forcer la focale la plus courte (zoom minimal)
+              advanced: [{ zoom: 0 }]
             }}
             className="w-full h-full object-cover"
             style={{ minWidth: '100vw', minHeight: '100vh' }}
             mirrored={mirrorPreview}
-            onUserMedia={() => setWebcamEstPret(true)}
+            onUserMedia={(stream) => {
+              setWebcamEstPret(true);
+              // Forcer la focale la plus courte
+              configureWebcamZoom(stream);
+            }}
             onUserMediaError={(err) => {
               console.error("Erreur webcam:", err);
               setWebcamError(`Erreur d'accès à la caméra: ${err.name}`);
@@ -2424,14 +2467,31 @@ const savePhoto = async (magicalOptionOverride = null) => {
                     screenshotHeight={SCREEN_HEIGHT}
                     forceScreenshotSourceSize={true}
                     videoConstraints={{
-                      width: SCREEN_WIDTH,
-                      height: SCREEN_HEIGHT,
                       facingMode: "user",
-                      aspectRatio: SCREEN_WIDTH / SCREEN_HEIGHT
+                      ...(orientation === 'portrait' || orientation === 'vertical' 
+                        ? {
+                            // En portrait, utiliser toute la surface du capteur sans contraintes de taille fixes
+                            // Laisser la caméra utiliser sa résolution native maximale sans crop
+                            width: { ideal: 1920, min: 640 },
+                            height: { ideal: 1080, min: 480 }
+                            // Pas d'aspectRatio pour permettre à la caméra d'utiliser toute sa surface
+                          }
+                        : {
+                            // En paysage, garder les contraintes originales
+                            width: SCREEN_WIDTH,
+                            height: SCREEN_HEIGHT,
+                            aspectRatio: SCREEN_WIDTH / SCREEN_HEIGHT
+                          }),
+                      // Forcer la focale la plus courte (zoom minimal)
+                      advanced: [{ zoom: 0 }]
                     }}
                     className="w-full h-full object-cover"
                     style={{ minWidth: '100vw', minHeight: '100vh' }}
                     mirrored={mirrorPreview}
+                    onUserMedia={(stream) => {
+                      // Forcer la focale la plus courte
+                      configureWebcamZoom(stream);
+                    }}
                     onUserMediaError={(err) => {
                       console.error("Erreur webcam:", err);
                       setWebcamError(`Erreur d'accès à la caméra: ${err.name}`);

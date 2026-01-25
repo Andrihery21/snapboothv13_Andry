@@ -432,7 +432,32 @@ export default function EcranVerticale1Captures({ eventId }) {
     setEtape('magicalEffect');
   };
 
-
+  // Fonction pour forcer la focale la plus courte (zoom minimal)
+  const configureWebcamZoom = (stream) => {
+    if (!stream || !stream.getVideoTracks) return;
+    
+    const videoTracks = stream.getVideoTracks();
+    if (videoTracks.length === 0) return;
+    
+    const videoTrack = videoTracks[0];
+    if (!videoTrack || !('getCapabilities' in videoTrack)) return;
+    
+    try {
+      const capabilities = videoTrack.getCapabilities();
+      if (capabilities && 'zoom' in capabilities) {
+        const minZoom = capabilities.zoom.min || 0;
+        
+        // Appliquer le zoom minimal via les contraintes
+        videoTrack.applyConstraints({ 
+          advanced: [{ zoom: minZoom }] 
+        }).catch(err => {
+          console.warn("Impossible d'appliquer les contraintes de zoom:", err);
+        });
+      }
+    } catch (err) {
+      console.warn("Erreur lors de la configuration du zoom:", err);
+    }
+  };
 
   // Initialiser la webcam
   // useEffect(() => {
@@ -947,11 +972,20 @@ export default function EcranVerticale1Captures({ eventId }) {
                         ref={webcamRef}
                         screenshotFormat="image/jpeg"
                         videoConstraints={{
-                          width: SCREEN_WIDTH,
-                          height: SCREEN_HEIGHT,
-                          facingMode: "user"
+                          facingMode: "user",
+                          // En portrait, utiliser toute la surface du capteur sans contraintes de taille fixes
+                          // Laisser la caméra utiliser sa résolution native maximale sans crop
+                          width: { ideal: 1920, min: 640 },
+                          height: { ideal: 1080, min: 480 },
+                          // Pas d'aspectRatio pour permettre à la caméra d'utiliser toute sa surface
+                          // Forcer la focale la plus courte (zoom minimal)
+                          advanced: [{ zoom: 0 }]
                         }}
                         className="w-full h-full object-cover"
+                        onUserMedia={(stream) => {
+                          // Forcer la focale la plus courte
+                          configureWebcamZoom(stream);
+                        }}
                         onUserMediaError={(err) => {
                           console.error("Erreur webcam:", err);
                           setWebcamError(`Erreur d'accès à la caméra: ${err.name}`);
@@ -987,11 +1021,20 @@ export default function EcranVerticale1Captures({ eventId }) {
                     ref={webcamRef}
                     screenshotFormat="image/jpeg"
                     videoConstraints={{
-                      width: SCREEN_WIDTH,
-                      height: SCREEN_HEIGHT,
-                      facingMode: "user"
+                      facingMode: "user",
+                      // En portrait, utiliser toute la surface du capteur sans contraintes de taille fixes
+                      // Laisser la caméra utiliser sa résolution native maximale sans crop
+                      width: { ideal: 1920, min: 640 },
+                      height: { ideal: 1080, min: 480 },
+                      // Pas d'aspectRatio pour permettre à la caméra d'utiliser toute sa surface
+                      // Forcer la focale la plus courte (zoom minimal)
+                      advanced: [{ zoom: 0 }]
                     }}
                     className="absolute inset-0 w-full h-full object-cover"
+                    onUserMedia={(stream) => {
+                      // Forcer la focale la plus courte
+                      configureWebcamZoom(stream);
+                    }}
                     onUserMediaError={(err) => {
                       console.error("Erreur webcam:", err);
                       setWebcamError(`Erreur d'accès à la caméra: ${err.name}`);

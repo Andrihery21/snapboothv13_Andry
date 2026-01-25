@@ -199,7 +199,7 @@ export function ScreenConfigProvider({ children, screenId: initialScreenId, even
       
       const { data, error } = await supabase
         .from('screens')
-        .select('*, cartoon, caricature, dessin, univers, fluxcontext_1, nano_banana')
+        .select('*, cartoon, caricature, dessin, univers, fluxcontext_1, nano_banana, bg_removal')
         .eq('id', uuid)
         .single();
       
@@ -233,6 +233,7 @@ export function ScreenConfigProvider({ children, screenId: initialScreenId, even
           fluxcontext_1: data.fluxcontext_1 || false,
           fluxcontext2: data.fluxcontext2 || false,
           nano_banana: data.nano_banana || false,
+          bg_removal: data.bg_removal || false,
           capture_params: { ...DEFAULT_CAPTURE_PARAMS, ...configData.capture_params },
           appearance_params: { ...DEFAULT_APPEARANCE_PARAMS, ...configData.appearance_params },
           advanced_params: { ...DEFAULT_ADVANCED_PARAMS, ...configData.advanced_params },

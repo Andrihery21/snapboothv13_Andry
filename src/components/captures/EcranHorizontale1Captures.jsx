@@ -293,6 +293,33 @@ export default function EcranHorizontale1Captures({ eventId }) {
     savePhoto();
   };
 
+  // Fonction pour forcer la focale la plus courte (zoom minimal)
+  const configureWebcamZoom = (stream) => {
+    if (!stream || !stream.getVideoTracks) return;
+    
+    const videoTracks = stream.getVideoTracks();
+    if (videoTracks.length === 0) return;
+    
+    const videoTrack = videoTracks[0];
+    if (!videoTrack || !('getCapabilities' in videoTrack)) return;
+    
+    try {
+      const capabilities = videoTrack.getCapabilities();
+      if (capabilities && 'zoom' in capabilities) {
+        const minZoom = capabilities.zoom.min || 0;
+        
+        // Appliquer le zoom minimal via les contraintes
+        videoTrack.applyConstraints({ 
+          advanced: [{ zoom: minZoom }] 
+        }).catch(err => {
+          console.warn("Impossible d'appliquer les contraintes de zoom:", err);
+        });
+      }
+    } catch (err) {
+      console.warn("Erreur lors de la configuration du zoom:", err);
+    }
+  };
+
   // Fonction pour prendre une photo
   const lancerDecompte = () => {
     if (decompte !== null) return; // Déjà en cours de décompte
@@ -682,9 +709,15 @@ export default function EcranHorizontale1Captures({ eventId }) {
                       videoConstraints={{
                         width: SCREEN_WIDTH,
                         height: SCREEN_HEIGHT,
-                        facingMode: "user"
+                        facingMode: "user",
+                        // Forcer la focale la plus courte (zoom minimal)
+                        advanced: [{ zoom: 0 }]
                       }}
                       className="w-full h-full object-cover"
+                      onUserMedia={(stream) => {
+                        // Forcer la focale la plus courte
+                        configureWebcamZoom(stream);
+                      }}
                       onUserMediaError={(err) => {
                         console.error("Erreur webcam:", err);
                         setWebcamError(`Erreur d'accès à la caméra: ${err.name}`);

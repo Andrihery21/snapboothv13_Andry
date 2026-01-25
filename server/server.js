@@ -844,6 +844,80 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
       }
     }
 
+      // ---------------------- AILab Background Removal ----------------------
+    else if (magicalId === 'bg_removal') {
+      console.log('🖼️ Traitement avec AILab Background Removal API');
+      
+      // Créer un fichier temporaire
+      const tempFilePath = path.join(tmpdir(), `temp_bg_removal_${Date.now()}.jpg`);
+      writeFileSync(tempFilePath, imageBuffer);
+      
+      try {
+        // Créer FormData pour l'appel API AILab
+        const formData = new FormData();
+        formData.append('image', fs.createReadStream(tempFilePath), {
+          filename: 'image.jpg',
+          contentType: 'image/jpeg'
+        });
+       // formData.append('return_form', 'url'); // Retourner l'URL de l'image traitée
+
+        console.log('📤 Envoi à AILab Background Removal API...');
+        console.log('🔑 Clé API utilisée:', process.env.AILAB_API_KEY ? 'Variable d\'env' : 'Clé par défaut');
+        console.log('📁 Fichier temporaire:', tempFilePath);
+        console.log('📏 Taille du buffer:', imageBuffer.length, 'octets');
+        
+        const response = await axios.post(
+          'https://www.ailabapi.com/api/cutout/general/universal-background-removal',
+          formData,
+          {
+            headers: {
+              'ailabapi-api-key': 'gS7zL4BO3JthbYvCNI0ynFAOwzTgC2hmslTtk5L4eayDnHlBiKjPqZQPi8mZU8cV',
+              ...formData.getHeaders(),
+            },
+            timeout: 60000 // 60 secondes de timeout
+          }
+        );
+
+        console.log('✅ Réponse AILab Background Removal reçue');
+        console.log('📝 Données de réponse:', JSON.stringify(response.data, null, 2));
+
+        // Vérifier la réponse
+        if (response.data.error_code !== 0) {
+          throw new Error(response.data.error_msg || 'AILab Background Removal : Erreur inconnue');
+        }
+
+        // Extraire l'URL de l'image traitée
+        processedImageUrl = response.data.data.image_url;
+        
+        if (!processedImageUrl) {
+          throw new Error('AILab Background Removal : URL de l\'image manquante dans la réponse');
+        }
+
+        console.log('✅ Background removal appliqué avec succès, URL:', processedImageUrl);
+
+      } catch (error) {
+        console.error('❌ Erreur AILab Background Removal:', error.message);
+        console.error('❌ Détails de l\'erreur:', error.response?.data || error);
+        
+        // Nettoyer le fichier temporaire en cas d'erreur
+        if (fs.existsSync(tempFilePath)) {
+          fs.unlinkSync(tempFilePath);
+        }
+        
+        // Si c'est une erreur API, la propager avec plus de détails
+        if (error.response?.data) {
+          throw new Error(`AILab API Error: ${error.response.data.error_msg || error.response.data.message || 'Erreur inconnue'} (Code: ${error.response.data.error_code || error.response.status})`);
+        }
+        
+        throw error;
+      } finally {
+        // Nettoyer le fichier temporaire
+        if (fs.existsSync(tempFilePath)) {
+          fs.unlinkSync(tempFilePath);
+        }
+      }
+    }
+
     // ---------------------- AILab Portrait ----------------------
     else {
      // Créer un fichier temporaire
@@ -881,7 +955,7 @@ app.post('/apply-effects', uploaded.single('image'), async (req, res) => {
         }
         throw error;
       }
-    }
+    } 
 
     // Réponse finale
     return res.json({ imageUrl: processedImageUrl });
