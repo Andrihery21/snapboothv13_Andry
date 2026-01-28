@@ -21,6 +21,12 @@ import EcranHorizontale1Captures from './components/captures/EcranHorizontal1Cap
 import EcranPropsCaptures from './components/captures/EcranPropsCaptures';
 import EcranVideoCaptures from './components/captures/EcranVideoCaptures';
 import EcranImpression from './components/captures/EcranImpression';
+// Nouveaux écrans BG
+import EcranHorizontalBG1 from './components/captures/EcranHorizontalBG1';
+import EcranVerticalBG1 from './components/captures/EcranVerticalBG1';
+import EcranVerticalBG2 from './components/captures/EcranVerticalBG2';
+import EcranVerticalBG3 from './components/captures/EcranVerticalBG3';
+import EcranVerticalBG4 from './components/captures/EcranVerticalBG4';
 import { useAuthStore } from '../store/auth';
 import { Logger } from '../lib/logger';
 import { ScreenConfigProvider } from './components/admin/screens/ScreenConfigProvider';
@@ -114,6 +120,13 @@ export default function App() {
           <Route path="/captures/screen/4c1a0f9d-8e6f-7e4e-1f5c-9d7e6f5e4e3c" element={<CaptureRouteWrapper screenKey="vertical3" Component={EcranVerticale3Captures} />} />
           <Route path="/captures/screen/5c2b1a0e-9f7e-8f5e-2g6d-0f8e9g7h6g5h" element={<CaptureRouteWrapper screenKey="props" Component={EcranPropsCaptures} />} />
           <Route path="/captures/screen/6d3c2b1f-0g8f-9g6e-3h7e-1g9f0h8i7i6j" element={<CaptureRouteWrapper screenKey="video" Component={EcranVideoCaptures} />} />
+          
+          {/* Nouvelles routes pour les écrans BG */}
+          <Route path="/captures/horizontal-bg-1/:eventId" element={<CaptureRouteWrapper screenKey="horizontal-bg1" Component={EcranHorizontalBG1} />} />
+          <Route path="/captures/vertical-bg-1/:eventId" element={<CaptureRouteWrapper screenKey="vertical-bg1" Component={EcranVerticalBG1} />} />
+          <Route path="/captures/vertical-bg-2/:eventId" element={<CaptureRouteWrapper screenKey="vertical-bg2" Component={EcranVerticalBG2} />} />
+          <Route path="/captures/vertical-bg-3/:eventId" element={<CaptureRouteWrapper screenKey="vertical-bg3" Component={EcranVerticalBG3} />} />
+          <Route path="/captures/vertical-bg-4/:eventId" element={<CaptureRouteWrapper screenKey="vertical-bg4" Component={EcranVerticalBG4} />} />
           <Route path="/design-system" element={<DesignSystem />} />
           <Route path="/" element={<Navigate to="/events" replace />} />
           <Route path="*" element={<Navigate to="/events" replace />} />

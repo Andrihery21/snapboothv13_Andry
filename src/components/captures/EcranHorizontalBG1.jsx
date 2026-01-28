@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { QRCode } from '../QRCode';
+import printImage from '../../../lib/printImage';
 import { supabase } from '../../../lib/supabase';
 import { notify } from '../../../lib/notifications';
 import { getCurrentStandId } from '../../utils/standConfig';
@@ -21,7 +22,7 @@ import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import '../../../src/styles/phone-input.css';
 import { sendPhotoByEmail } from '../../services/emailService';
-import BackgroundSelection from '../backgrounds/BackgroundSelection';
+import BackgroundSelectionFromList from '../backgrounds/BackgroundSelectionFromList';
 
 
 
@@ -1110,7 +1111,7 @@ const NormalEffectSelection = ({ onSelectEffect, onCancel, image, config }) => {
   );
 };
 
-export default function EcranHorizontale1Captures({ eventId}) {
+export default function EcranHorizontalBG1({ eventId}) {
   const location = useLocation();
   const navigate = useNavigate();
   const params = useParams();
@@ -1120,7 +1121,7 @@ export default function EcranHorizontale1Captures({ eventId}) {
   const [isStartScreenLoading, setIsStartScreenLoading] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
   const [mediaAspectRatio, setMediaAspectRatio] = useState(null);
-  const [orientation, setOrientation] = useState('vertical'); // Valeur par défaut: vertical
+  const [orientation, setOrientation] = useState('horizontal'); // Valeur par défaut: horizontal (paysage)
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = getScreenDimensions(orientation);
   const [frameUrl, setFrameUrl] = useState(null);
   const [imgSrc, setImgSrc] = useState(null);
@@ -1610,39 +1611,22 @@ export default function EcranHorizontale1Captures({ eventId}) {
     }, 1000);
   };
   
-  // Fonction pour valider la photo et passer à la sélection du mode
+  // Fonction pour valider la photo et passer au traitement
   const validerPhoto = () => {
-    // Passer à l'étape de choix du mode (Normal ou Magique)
-    setEtape('modeSelection');
+    // Forcer bg_removal et passer directement au traitement
+    setSelectedMagicalEffect('bg_removal');
+    setEtape('traitement');
+    setEnTraitement(true);
+    savePhoto(null, 'bg_removal');
   };
   
-  // Fonction pour gérer le choix du mode
+  // Fonction pour gérer la sélection du mode (modifiée pour bg_removal direct)
   const choisirMode = (mode) => {
-    if (mode === 'magical') {
-      // Vérifier si un effet magique est configuré pour cet écran
-      if (config && config.magicalEffect) {
-        // Si un effet magique est déjà configuré, le sélectionner automatiquement
-        setSelectedMagicalEffect(config.magicalEffect);
-        
-        // Vérifier si cet effet a des options (vignettes à afficher)
-        // On affiche toujours les options pour que l'utilisateur puisse choisir
-        setShowEffectOptions(true);
-      } else {
-        // Sinon, afficher la sélection d'effet magique
-        setEtape('magicalEffect');
-      }
-    } else if (mode === 'normal') {
-      // Vérifier si un effet normal est configuré pour cet écran
-      if (config && config.normalEffect) {
-        setSelectedNormalEffect(config.normalEffect);
-        setEtape('traitement');
-        setEnTraitement(true);
-        savePhoto();
-      } else {
-        // Sinon, afficher la sélection d'effet normal
-        setEtape('normalEffect');
-      }
-    }
+    // Pour EcranHorizontalBG1, on force toujours le mode bg_removal
+    setSelectedMagicalEffect('bg_removal');
+    setEtape('traitement');
+    setEnTraitement(true);
+    savePhoto();
   };
   
   // Fonction pour annuler le choix du mode
@@ -1693,8 +1677,9 @@ export default function EcranHorizontale1Captures({ eventId}) {
     setSelectedBackground(background);
     setShowBackgroundSelection(false);
     
-    // Traiter la photo avec le background sélectionné
-    processPhotoWithBackground(background);
+    // Lancer la capture de photo après sélection du background
+    setEtape('decompte');
+    lancerDecompte();
   };
 
   // Fonction pour traiter la photo avec le background sélectionné (appliqué sur image originale)
@@ -1780,11 +1765,13 @@ export default function EcranHorizontale1Captures({ eventId}) {
       
       // Sauvegarder l'image traitée avec background dans Supabase
       try {
+        // Défensif : fallback pour le type d'écran
+        const screenType = (config && config.type) ? config.type : 'unknown';
         // Générer un nom de fichier unique pour l'image avec background
-        const fileName = `${Date.now()}_${standId || 'unknown'}_${config.type}_bg_removed.jpg`;
-        
-        // Utiliser les constantes de stockage définies pour cet écran
-        const bucketName = contextScreenId;
+        const fileName = `${Date.now()}_${standId || 'unknown'}_${screenType}_bg_removed.jpg`;
+
+        // Utiliser les constantes de stockage définies pour cet écran (fallback)
+        const bucketName = contextScreenId || 'assets';
         const processedFilePath = `${PROCESSED_FOLDER}/${fileName}`;
 
         // Télécharger l'image traitée avec background vers Supabase Storage
@@ -1917,9 +1904,8 @@ export default function EcranHorizontale1Captures({ eventId}) {
   const demarrerPhotobooth = () => {
   if (etape !== 'accueil') return;
   
-  // Passer directement au décompte
-  setEtape('decompte');
-  lancerDecompte();
+  // Pour EcranHorizontalBG1: passer directement à la sélection de background
+  setEtape('backgroundSelection');
 };
 
 
@@ -1977,24 +1963,28 @@ export default function EcranHorizontale1Captures({ eventId}) {
 
   // Fonction pour sauvegarder la photo
   // Fonction pour sauvegarder la photo
-const savePhoto = async (magicalOptionOverride = null) => {
+const savePhoto = async (magicalOptionOverride = null, magicalEffectOverride = null) => {
   if (!imgSrc) return;
-  
+
   // Utiliser la valeur passée en paramètre si disponible, sinon utiliser l'état
   const effectiveOption = magicalOptionOverride !== null ? magicalOptionOverride : selectedMagicalOption;
-  
+  const effectiveMagicalEffect = magicalEffectOverride !== null ? magicalEffectOverride : selectedMagicalEffect;
+  const effectiveBackground = selectedBackground;
+
   setEnTraitement(true);
-  
+
   try {
     // Convertir l'image base64 en blob
     const res = await fetch(imgSrc);
     const blob = await res.blob();
-    
+
+    // Défensif : utiliser des fallbacks si la config ou le bucket ne sont pas encore disponibles
+    const screenType = (config && config.type) ? config.type : 'unknown';
+    const bucketName = contextScreenId || 'assets';
+
     // Générer un nom de fichier unique
-    const fileName = `${Date.now()}_${standId || 'unknown'}_${config.type}.jpg`;
-    
-    // Utiliser les constantes de stockage définies pour cet écran
-    const bucketName = contextScreenId;
+    const fileName = `${Date.now()}_${standId || 'unknown'}_${screenType}.jpg`;
+
     const originalFilePath = `${CAPTURES_FOLDER}/${fileName}`;
     const processedFilePath = `${PROCESSED_FOLDER}/${fileName}`;
 
@@ -2015,8 +2005,8 @@ const savePhoto = async (magicalOptionOverride = null) => {
       
     } catch (uploadError) {
       console.error("Erreur lors de l'upload original:", uploadError);
-      // Essayer avec le bucket de secours 'assets'
-      const fallbackPath = `${config.type}/captures/${fileName}`;
+  // Essayer avec le bucket de secours 'assets'
+  const fallbackPath = `${screenType}/captures/${fileName}`;
       
       const { error: fallbackError } = await supabase.storage
         .from('assets')
@@ -2046,7 +2036,7 @@ const savePhoto = async (magicalOptionOverride = null) => {
           url: originalPublicUrl,
           event_id: eventID,
           stand_id: standId,
-          screen_type: config.type,
+          screen_type: screenType,
           is_processed: false, // Indique que c'est l'originale
           magical_effect: null, // Pas encore d'effet appliqué
           normal_effect: null,  // Pas encore d'effet appliqué
@@ -2084,22 +2074,88 @@ const savePhoto = async (magicalOptionOverride = null) => {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0);
       
-      // Appliquer les effets magiques et normaux
+      // Appliquer les effets magiques et normaux (comme dans EcranHorizontal1Capture)
       console.log(`[savePhoto] Application des effets:`);
-      console.log(`  - magicalEffect: ${selectedMagicalEffect}`);
+      console.log(`  - magicalEffect: ${effectiveMagicalEffect}`);
       console.log(`  - normalEffect: ${selectedNormalEffect}`);
       console.log(`  - magicalOption (état): ${selectedMagicalOption}`);
       console.log(`  - magicalOption (effective): ${effectiveOption}`);
-      const processedCanvas = await composeEffects(canvas, selectedMagicalEffect, selectedNormalEffect, effectiveOption);
+      console.log(`  - selectedBackground:`, effectiveBackground);
       
-      // Convertir le canvas traité en blob
-      processedBlob = await new Promise(resolve => {
-        processedCanvas.toBlob(resolve, 'image/jpeg', 0.9);
-      });
-      
-      // Créer une URL pour l'image traitée
-      processedImageUrl = URL.createObjectURL(processedBlob);
-      console.log("URL finale de l'image traitée:", processedImageUrl);
+      // Pour bg_removal, traitement spécial en deux étapes
+      if (effectiveMagicalEffect === 'bg_removal') {
+        console.log('[savePhoto] Traitement bg_removal en deux étapes');
+        
+        // Étape 1: Appliquer bg_removal pour supprimer le background
+        const bgRemovedCanvas = await composeEffects(canvas, 'bg_removal', null, null);
+        console.log('[savePhoto] Background supprimé avec succès');
+        
+        let finalCanvas = bgRemovedCanvas;
+        
+        // Étape 2: Si un background est sélectionné, l'appliquer manuellement
+        if (effectiveBackground) {
+          console.log('[savePhoto] Application du background manuellement:', effectiveBackground.url);
+          
+          // Charger l'image de background
+          const bgResponse = await fetch(effectiveBackground.url);
+          const bgBlob = await bgResponse.blob();
+          const bgUrl = URL.createObjectURL(bgBlob);
+          const bgImg = new Image();
+          
+          await new Promise((resolve, reject) => {
+            bgImg.onload = resolve;
+            bgImg.onerror = reject;
+            bgImg.src = bgUrl;
+          });
+          
+          // Créer un canvas final pour composer l'image
+          finalCanvas = document.createElement('canvas');
+          finalCanvas.width = bgRemovedCanvas.width;
+          finalCanvas.height = bgRemovedCanvas.height;
+          const finalCtx = finalCanvas.getContext('2d');
+          
+          // Dessiner le background en premier
+          finalCtx.drawImage(bgImg, 0, 0, finalCanvas.width, finalCanvas.height);
+          
+          // Dessiner l'image traitée (sans background) par-dessus
+          finalCtx.drawImage(bgRemovedCanvas, 0, 0);
+          
+          // Libérer les ressources
+          URL.revokeObjectURL(bgUrl);
+          
+          console.log('[savePhoto] Background appliqué avec succès');
+        }
+        
+        // Appliquer les effets normaux si présents
+        if (selectedNormalEffect && selectedNormalEffect !== 'normal') {
+          console.log('[savePhoto] Application des effets normaux sur le résultat bg_removal');
+          finalCanvas = await composeEffects(finalCanvas, null, selectedNormalEffect, null);
+        }
+        
+        const processedCanvas = finalCanvas;
+        
+        // Convertir le canvas traité en blob
+        processedBlob = await new Promise(resolve => {
+          processedCanvas.toBlob(resolve, 'image/jpeg', 0.9);
+        });
+        
+        // Créer une URL pour l'image traitée
+        processedImageUrl = URL.createObjectURL(processedBlob);
+        console.log("URL finale de l'image traitée bg_removal:", processedImageUrl);
+        
+      } else {
+        // Cas standard: autres effets magiques
+        const processedCanvas = await composeEffects(canvas, effectiveMagicalEffect, selectedNormalEffect, effectiveOption);
+        
+        // Convertir le canvas traité en blob
+        processedBlob = await new Promise(resolve => {
+          processedCanvas.toBlob(resolve, 'image/jpeg', 0.9);
+        });
+        
+        // Créer une URL pour l'image traitée
+        processedImageUrl = URL.createObjectURL(processedBlob);
+        console.log("URL finale de l'image traitée:", processedImageUrl);
+      }
       
       // Libérer les ressources
       URL.revokeObjectURL(blobUrl);
@@ -2130,7 +2186,7 @@ const savePhoto = async (magicalOptionOverride = null) => {
     } catch (processedUploadError) {
       console.error("Erreur lors de l'upload de l'image traitée:", processedUploadError);
       // Essayer avec le bucket de secours 'assets'
-      const fallbackProcessedPath = `${config.type}/processed/${fileName}`;
+  const fallbackProcessedPath = `${screenType || (config && config.type) || 'unknown'}/processed/${fileName}`;
       
       const { error: fallbackError } = await supabase.storage
         .from('assets')
@@ -2161,7 +2217,7 @@ const savePhoto = async (magicalOptionOverride = null) => {
           url: processedPublicUrl,
           event_id: eventID,
           stand_id: standId,
-          screen_type: config.type,
+          screen_type: screenType,
           is_processed: true, // Indique que c'est une image traitée
           original_photo_id: originalPhotoId, // Référence à l'image originale
           magical_effect: selectedMagicalEffect || null,
@@ -2209,8 +2265,12 @@ const savePhoto = async (magicalOptionOverride = null) => {
       console.warn("Erreur lors de la sauvegarde automatique locale:", localSaveError);
     }
     
-    // Mettre à jour le statut de la station de capture
-    await updateCaptureStationStatus(standId, 'ready');
+    // Mettre à jour le statut de la station de capture (utiliser les bons paramètres)
+    try {
+      await updateCaptureStationStatus(screenType, eventID, 'ready', standId);
+    } catch (statusErr) {
+      console.warn('Impossible de mettre à jour le statut de la station:', statusErr);
+    }
     
     // Afficher l'image traitée (blob pour l'affichage rapide), et utiliser qrTargetUrl pour le QR
     setImageTraitee(processedImageUrl);
@@ -2218,22 +2278,10 @@ const savePhoto = async (magicalOptionOverride = null) => {
     
     setEnTraitement(false);
     
-    // Si bg_removal est sélectionné, passer à l'écran résultat avec décompte puis QR code
+    // Si bg_removal est sélectionné, passer directement à l'écran QR code après traitement
     if (selectedMagicalEffect === 'bg_removal') {
-      setEtape('resultat');
-      
-      // Afficher le résultat pendant 10 secondes pour bg_removal aussi
-      setDecompteResultat(10);
-      const resultInterval = setInterval(() => {
-        setDecompteResultat(prev => {
-          if (prev <= 1) {
-            clearInterval(resultInterval);
-            afficherQRCode();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+      // Passer directement au QR code sans passer par l'écran résultat
+      afficherQRCode();
     } else {
       setEtape('resultat');
       
@@ -2273,6 +2321,7 @@ const savePhoto = async (magicalOptionOverride = null) => {
     setDecompteResultat(null);
     setSelectedMagicalEffect(null);
     setSelectedNormalEffect(null);
+    setSelectedBackground(null); // Réinitialiser le background sélectionné
     setSelectedTemplate(null); // Reset aussi le template
     setGroupSelectionSkipped(false); // Reset l'état de saut de groupe
     setEtape('accueil');
@@ -2621,6 +2670,52 @@ const savePhoto = async (magicalOptionOverride = null) => {
 
               {/* Écran de sélection de template - SUPPRIMÉ */}
 
+              {/* Écran de sélection de background */}
+              {etape === 'backgroundSelection' && (
+                <div className="fixed inset-0 w-screen h-screen">
+                  {/* Liveview derrière */}
+                  <div className="absolute inset-0 z-0 w-full h-full">
+                    <Webcam
+                      audio={false}
+                      ref={webcamRef}
+                      screenshotFormat="image/jpeg"
+                      screenshotWidth={SCREEN_WIDTH}
+                      screenshotHeight={SCREEN_HEIGHT}
+                      forceScreenshotSourceSize={true}
+                      videoConstraints={{
+                        facingMode: 'user',
+                        ...(orientation === 'portrait' || orientation === 'vertical'
+                          ? {
+                              width: { ideal: 1920, min: 640 },
+                              height: { ideal: 1080, min: 480 }
+                            }
+                          : {
+                              width: SCREEN_WIDTH,
+                              height: SCREEN_HEIGHT,
+                              aspectRatio: SCREEN_WIDTH / SCREEN_HEIGHT
+                            }),
+                        advanced: [{ zoom: 0 }]
+                      }}
+                      className="w-full h-full object-cover"
+                      style={{ minWidth: '100vw', minHeight: '100vh' }}
+                      mirrored={mirrorPreview}
+                      onUserMedia={(stream) => {
+                        configureWebcamZoom(stream);
+                      }}
+                      onUserMediaError={(err) => {
+                        console.error('Erreur webcam:', err);
+                        setWebcamError(`Erreur d'accès à la caméra: ${err.name}`);
+                      }}
+                    />
+                  </div>
+                  <BackgroundSelectionFromList
+                    image={imgSrc || '/assets/placeholder.jpg'}
+                    onSelectBackground={handleSelectBackground}
+                    onCancel={() => setEtape('accueil')}
+                    screenKey={config?.screen_key || contextScreenId || config?.id}
+                  />
+                </div>
+              )}
               
               {/* Écran de décompte */}
               {etape === 'decompte' && (
@@ -2780,10 +2875,11 @@ const savePhoto = async (magicalOptionOverride = null) => {
                     <>
                       {/* Si bg_removal est sélectionné mais aucun background n'est choisi, afficher la sélection de background */}
                       {selectedMagicalEffect === 'bg_removal' && !selectedBackground ? (
-                        <BackgroundSelection
+                        <BackgroundSelectionFromList
                           image={imageTraiteeDisplay} // Utiliser l'image affichée pour la sélection
                           onSelectBackground={handleSelectBackground}
                           onCancel={handleCancelBackgroundSelection}
+                          screenKey={config?.screen_key || contextScreenId || config?.id}
                         />
                       ) : (
                         // Sinon, afficher l'écran résultat normalement
@@ -2827,10 +2923,11 @@ const savePhoto = async (magicalOptionOverride = null) => {
                 <>
                   {/* Si bg_removal est sélectionné mais aucun background n'est choisi, afficher la sélection de background */}
                   {selectedMagicalEffect === 'bg_removal' && !selectedBackground ? (
-                    <BackgroundSelection
+                    <BackgroundSelectionFromList
                       image={imageTraiteeDisplay || imgSrc} // Utiliser l'image traitée ou originale
                       onSelectBackground={handleSelectBackground}
                       onCancel={handleCancelBackgroundSelection}
+                      screenKey={config?.screen_key || contextScreenId || config?.id}
                     />
                   ) : (
                     // Sinon, afficher l'écran QR code normalement
@@ -2954,12 +3051,23 @@ const savePhoto = async (magicalOptionOverride = null) => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.4 }}
                     >
-                      <p className="text-purple-900 font-bold text-lg flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                        </svg>
-                        {getText('scan_qr_text', 'Scannez le QR code')}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-purple-900 font-bold text-lg flex items-center gap-2">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                          </svg>
+                          {getText('scan_qr_text', 'Scannez le QR code')}
+                        </p>
+                        <button
+                          onClick={() => printImage(qrTargetUrl || '', 'landscape')}
+                          className="ml-2 inline-flex items-center gap-2 px-3 py-2 bg-white text-purple-700 rounded-full border border-purple-200 hover:bg-purple-50"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 9V2h12v7M6 22h12v-7M6 13h12" />
+                          </svg>
+                          <span className="text-sm font-medium">Imprimer</span>
+                        </button>
+                      </div>
                     </motion.div>
                   </div>
                   

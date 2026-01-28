@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Calendar, AlertCircle, CheckCircle, ArrowRight, LogOut, Users, Mail, Settings, BarChart3, Shield, Loader2 } from 'lucide-react';
+import { Calendar, AlertCircle, CheckCircle, ArrowRight, LogOut, Users, Mail, Settings, BarChart3, Shield, Loader2, Plus } from 'lucide-react';
 import { notify } from '../lib/notifications';
 import { useAuthStore } from '../../store/auth';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -29,6 +29,12 @@ const AdminEventSelector = () => {
   const [newUserRole, setNewUserRole] = useState('user');
   const [showUserModal, setShowUserModal] = useState(false);
   const [editUser, setEditUser] = useState(null);
+  // États pour la création d'événement
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [newEventName, setNewEventName] = useState('');
+  const [newEventDate, setNewEventDate] = useState('');
+  const [newEventLocation, setNewEventLocation] = useState('');
+  const [eventCreating, setEventCreating] = useState(false);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -37,13 +43,13 @@ const AdminEventSelector = () => {
         setUsersLoading(true);
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, email, role, created_at')
+          .select('*')
           .order('created_at', { ascending: false });
+
         if (error) throw error;
         setUsers(data || []);
-      } catch (e) {
-        console.error('Erreur chargement utilisateurs:', e);
-        notify.error("Erreur lors du chargement des utilisateurs");
+      } catch (err) {
+        console.error('Erreur lors du chargement des utilisateurs:', err);
       } finally {
         setUsersLoading(false);
       }
@@ -83,6 +89,47 @@ const AdminEventSelector = () => {
     } catch (e) {
       console.error('Erreur création/modification utilisateur:', e);
       notify.error("Opération échouée");
+    }
+  };
+
+  const handleCreateEvent = async (e) => {
+    e.preventDefault();
+    if (!newEventName) return notify.error('Nom de l\'événement requis');
+    try {
+      setEventCreating(true);
+      const payload = {
+        name: newEventName,
+        date: newEventDate || new Date().toISOString(),
+        location: newEventLocation || null
+      };
+
+      const { data, error } = await supabase
+        .from('events')
+        .insert([payload])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const created = data;
+      // Ajouter immédiatement à la liste locale
+      setEvents(prev => [{ ...created, photos_count: 0 }, ...(prev || [])]);
+      // Sélectionner l'événement et naviguer vers le tableau de bord
+      setSelectedEventId(created.id);
+      localStorage.setItem('admin_selected_event_id', created.id);
+      notify.success('Événement créé');
+      setShowEventModal(false);
+      // Réinitialiser le formulaire
+      setNewEventName('');
+      setNewEventDate('');
+      setNewEventLocation('');
+
+      navigate(`/admin/dashboard/${created.id}`);
+    } catch (err) {
+      console.error('Erreur création événement:', err);
+      notify.error('Impossible de créer l\'événement');
+    } finally {
+      setEventCreating(false);
     }
   };
 
@@ -511,9 +558,20 @@ const AdminEventSelector = () => {
               transition={{ duration: 0.3 }}
             >
               <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <Calendar className="h-6 w-6 text-purple-600" />
-                  <h2 className="text-xl font-semibold text-gray-800">Sélection de l'événement</h2>
+                <div className="flex items-center justify-between gap-3 mb-6">
+                  <div className="flex items-center gap-3">
+                    <Calendar className="h-6 w-6 text-purple-600" />
+                    <h2 className="text-xl font-semibold text-gray-800">Sélection de l'événement</h2>
+                  </div>
+                  <div>
+                    <button
+                      onClick={() => setShowEventModal(true)}
+                      title="Créer un événement"
+                      className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 transition-colors"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <p className="text-gray-600 mb-6">
@@ -543,10 +601,11 @@ const AdminEventSelector = () => {
                   <p className="text-gray-500 text-lg">Aucun événement disponible</p>
                   <p className="text-sm text-gray-400 mt-2">Créez un événement pour commencer</p>
                   <button 
-                    className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-                    onClick={() => navigate('/admin/event/new')}
+                    className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors inline-flex items-center gap-2"
+                    onClick={() => setShowEventModal(true)}
                   >
-                    Créer un événement
+                    <Plus className="h-4 w-4" />
+                    <span>Créer un événement</span>
                   </button>
                 </div>
               ) : (
@@ -676,6 +735,80 @@ const AdminEventSelector = () => {
 
           {activeTab === 'users' && <UsersManagementTab />}
           {activeTab === 'email' && <EmailTab />}
+        </AnimatePresence>
+
+        {/* Modal création d'événement */}
+        <AnimatePresence>
+          {showEventModal && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+            >
+              <div className="bg-white rounded-xl shadow-xl p-8 w-full max-w-md relative">
+                <button
+                  onClick={() => setShowEventModal(false)}
+                  className="absolute top-3 right-3 text-gray-400 hover:text-gray-700"
+                  aria-label="Fermer"
+                >
+                  <svg width="24" height="24" fill="none" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round"/></svg>
+                </button>
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Créer un événement</h2>
+                <form onSubmit={handleCreateEvent} className="space-y-4">
+                  <div>
+                    <label className="block text-base font-semibold text-gray-800 mb-1">Nom de l'événement</label>
+                    <input
+                      type="text"
+                      value={newEventName}
+                      onChange={(e) => setNewEventName(e.target.value)}
+                      className="mt-1 block w-full px-4 py-3 text-lg rounded-lg border-2 border-purple-400 bg-gray-50 text-gray-900 placeholder-gray-400 focus:border-purple-600 focus:ring-2 focus:ring-purple-500"
+                      placeholder="Nom de l'événement"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-base font-semibold text-gray-800 mb-1">Date</label>
+                    <input
+                      type="datetime-local"
+                      value={newEventDate}
+                      onChange={(e) => setNewEventDate(e.target.value)}
+                      className="mt-1 block w-full px-4 py-3 text-lg rounded-lg border-2 border-purple-400 bg-gray-50 text-gray-900 placeholder-gray-400 focus:border-purple-600 focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-base font-semibold text-gray-800 mb-1">Lieu</label>
+                    <input
+                      type="text"
+                      value={newEventLocation}
+                      onChange={(e) => setNewEventLocation(e.target.value)}
+                      className="mt-1 block w-full px-4 py-3 text-lg rounded-lg border-2 border-purple-400 bg-gray-50 text-gray-900 placeholder-gray-400 focus:border-purple-600 focus:ring-2 focus:ring-purple-500"
+                      placeholder="Lieu (optionnel)"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      className="flex-1 py-2 px-4 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                      disabled={eventCreating}
+                    >
+                      {eventCreating ? 'Création...' : 'Créer l\'événement'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowEventModal(false)}
+                      className="py-2 px-4 border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
     </div>

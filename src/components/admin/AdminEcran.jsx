@@ -4,7 +4,7 @@ import {
   Monitor, RefreshCw, Save, Download, Upload, 
   Camera, Palette, Settings, ChevronRight, 
   CheckCircle, AlertCircle, Info, Sun, Moon,
-  Sparkles, Grid, Layout
+  Sparkles, Grid, Layout, Wallpaper
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { TabItem } from './ScreenComponents';
@@ -15,6 +15,7 @@ import AppearanceSettings from './screens/AppearanceSettings';
 import ThemeToggle from '../ui/ThemeToggle';
 import FilterSettings from './FilterSettings';
 import AdminEffect from '../effects/AdminEffect';
+import AdminBackgrounds from './AdminBackgrounds';
 import { notify } from '../../lib/notifications';
 import '../../styles/theme.css';
 
@@ -114,6 +115,7 @@ const AdminEcranContent = ({ eventId, onScreenChange }) => {
     { id: 'appearance', label: 'Apparence', icon: <Palette size={18} /> },
     { id: 'effects', label: 'Effets', icon: <Sparkles size={18} /> },
     { id: 'admin-effects', label: 'Gestion d\'effets', icon: <Grid size={18} /> },
+    { id: 'admin-bg', label: 'Gestion de background', icon: <Wallpaper size={18} /> },
   ];
 
   const [screens, setScreens] = useState([]);
@@ -472,6 +474,7 @@ const AdminEcranContent = ({ eventId, onScreenChange }) => {
                     {activeTab === 'appearance' && <AppearanceSettings />}
                     {activeTab === 'effects' && <FilterSettings />}
                     {activeTab === 'admin-effects' && <AdminEffect />}
+                    {activeTab === 'admin-bg' && <AdminBackgrounds />}
                   </AnimatePresence>
                 </div>
               </div>

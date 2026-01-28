@@ -15,6 +15,7 @@ import axios from 'axios';
 import WelcomeScreen from '../WelcomeScreen';
 import SelectEffect from '../../components/effects/SelectEffect';
 import { MAGICAL_EFFECTS, NORMAL_EFFECTS, composeEffects } from '../../lib/composeEffects';
+import BackgroundSelection from '../backgrounds/BackgroundSelection';
 
 // Constantes pour ce type d'écran
 const SCREEN_TYPE = 'horizontal';
@@ -146,6 +147,10 @@ export default function EcranHorizontale1Captures({ eventId }) {
   // États pour les effets
   const [selectedMagicalEffect, setSelectedMagicalEffect] = useState(null);
   const [selectedNormalEffect, setSelectedNormalEffect] = useState(null);
+  
+  // États pour la sélection de background (bg_removal)
+  const [selectedBackground, setSelectedBackground] = useState(null);
+  const [showBackgroundSelection, setShowBackgroundSelection] = useState(false);
   
   // Utiliser le hook useScreenConfig pour récupérer la configuration d'écran
   const { config, isLoading: configLoading } = useScreenConfig(SCREEN_TYPE, eventID);
@@ -391,7 +396,14 @@ export default function EcranHorizontale1Captures({ eventId }) {
       
       // Appliquer les effets magiques et normaux en utilisant composeEffects
       console.log(`Application des effets: magique=${selectedMagicalEffect}, normal=${selectedNormalEffect}`);
-      const processedCanvas = await composeEffects(canvas, selectedMagicalEffect, selectedNormalEffect);
+      
+      // Préparer l'option pour bg_removal si un background est sélectionné
+      let optionValue = null;
+      if (selectedMagicalEffect === 'bg_removal' && selectedBackground) {
+        optionValue = selectedBackground.url;
+      }
+      
+      const processedCanvas = await composeEffects(canvas, selectedMagicalEffect, selectedNormalEffect, optionValue);
       
       // Convertir le canvas traité en blob pour le stockage
       const processedBlob = await new Promise(resolve => {
@@ -596,7 +608,96 @@ export default function EcranHorizontale1Captures({ eventId }) {
     setShowWelcomeScreen(false);
   };
 
-  // Gérer la sélection d'un effet
+  // Gérer la sélection d'un effet magique
+  const handleSelectMagicalEffect = (effect) => {
+    setSelectedMagicalEffect(effect.id);
+    
+    // Si l'effet est bg_removal, montrer la sélection de background
+    if (effect.id === 'bg_removal') {
+      setShowBackgroundSelection(true);
+    } else {
+      // Continuer avec le flux normal pour les autres effets
+      setEtape('normalEffect');
+    }
+  };
+
+  // Gérer la sélection d'un background
+  const handleSelectBackground = (background) => {
+    setSelectedBackground(background);
+    setShowBackgroundSelection(false);
+    setMontrerSelectionEffets(false); // Fermer la sélection d'effets
+    
+    // Traiter la photo avec le background sélectionné
+    processPhotoWithBackground(background);
+  };
+
+  // Fonction pour traiter la photo avec le background sélectionné
+  const processPhotoWithBackground = async (background) => {
+    if (!imgSrc) return;
+    
+    setEnTraitement(true);
+    
+    try {
+      // Générer un ID unique pour la photo
+      const photoId = `${Date.now()}_${standId || 'unknown'}`;
+      
+      // Convertir l'URL de données en blob pour le traitement
+      const imgResponse = await fetch(imgSrc);
+      const imgBlob = await imgResponse.blob();
+      
+      // Créer un canvas à partir de l'image
+      const blobUrl = URL.createObjectURL(imgBlob);
+      const img = new Image();
+      
+      // Attendre que l'image soit chargée
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = blobUrl;
+      });
+      
+      // Créer un canvas à partir de l'image
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      
+      // Appliquer l'effet bg_removal avec le background sélectionné
+      console.log(`Application de l'effet bg_removal avec background: ${background.url}`);
+      const processedCanvas = await composeEffects(canvas, 'bg_removal', null, background.url);
+      
+      // Convertir le canvas traité en blob pour le stockage
+      const processedBlob = await new Promise(resolve => {
+        processedCanvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.9);
+      });
+      
+      // Créer une URL pour l'affichage
+      const processedImageSrc = URL.createObjectURL(processedBlob);
+      setImageTraitee(processedImageSrc);
+      
+      // Libérer les ressources
+      URL.revokeObjectURL(blobUrl);
+      
+      // Afficher un message de succès
+      notify.success("Photo traitée avec succès");
+      
+      // Afficher l'écran QR code
+      setMontrerQRCode(true);
+      setEnTraitement(false);
+      
+    } catch (error) {
+      console.error("Erreur lors du traitement de la photo:", error);
+      notify.error("Erreur lors du traitement de la photo");
+      setEnTraitement(false);
+    }
+  };
+
+  // Annuler la sélection de background
+  const handleCancelBackgroundSelection = () => {
+    setShowBackgroundSelection(false);
+    setSelectedMagicalEffect(null); // Réinitialiser aussi l'effet magique
+  };
  
 
   // Vérifier les commandes en attente
@@ -759,7 +860,7 @@ export default function EcranHorizontale1Captures({ eventId }) {
                     {!montrerSelectionEffets ? (
                       <button
                         onClick={() => { 
-                          capture();
+                          lancerDecompte();
                           setMontrerSelectionEffets(true);
                         }}
                         className="bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold py-4 px-8 rounded-full shadow-lg transform transition-transform hover:scale-105"
@@ -814,6 +915,18 @@ export default function EcranHorizontale1Captures({ eventId }) {
                               Glow-up
                             </button>
                           )}
+                          {/* Ajout du bouton Background Removal */}
+                          <button
+                            onClick={() => {
+                              setSelectedMagicalEffect('bg_removal');
+                              setMontrerSelectionEffets(false);
+                              setImageTraitee(imgSrc); // Utiliser l'image originale pour l'affichage initial
+                              setMontrerQRCode(true); // Passer directement à l'écran QR code
+                            }}
+                            className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-lg shadow-md"
+                          >
+                            Background Removal
+                          </button>
                         </div>
                         <button
                           onClick={() => {
@@ -842,6 +955,15 @@ export default function EcranHorizontale1Captures({ eventId }) {
                 </div>
               )}
               
+              {/* Sélection de background pour bg_removal */}
+              {showBackgroundSelection && imgSrc && (
+                <BackgroundSelection
+                  image={imgSrc}
+                  onSelectBackground={handleSelectBackground}
+                  onCancel={handleCancelBackgroundSelection}
+                />
+              )}
+              
               {/* Traitement en cours */}
               {enTraitement && (
                 <TraitementEnCours />
@@ -849,10 +971,24 @@ export default function EcranHorizontale1Captures({ eventId }) {
               
               {/* QR Code */}
               {montrerQRCode && (
-                <QRCode 
-                  imageUrl={imageTraitee} 
-                  onClose={retourAccueil} 
-                />
+                <>
+                  {/* Si bg_removal est sélectionné mais aucun background n'est choisi, montrer la sélection */}
+                  {selectedMagicalEffect === 'bg_removal' && !selectedBackground && (
+                    <BackgroundSelection
+                      image={imgSrc} // Utiliser l'image originale pour la sélection
+                      onSelectBackground={handleSelectBackground}
+                      onCancel={retourAccueil}
+                    />
+                  )}
+                  
+                  {/* Sinon, afficher le QR code normalement */}
+                  {(selectedMagicalEffect !== 'bg_removal' || selectedBackground) && (
+                    <QRCode 
+                      imageUrl={imageTraitee} 
+                      onClose={retourAccueil} 
+                    />
+                  )}
+                </>
               )}
             </>
           )}

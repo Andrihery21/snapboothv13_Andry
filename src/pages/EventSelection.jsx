@@ -272,9 +272,9 @@ export default function EventSelection({ onSelectEvent }) {
     setLaunchMenuOpen(launchMenuOpen === event.id ? null : event.id);
   };
 
-  const handleCaptureOptionSelect = (screenId, eventId) => {
-  logger.info('Option de capture sélectionnée', { screenId, eventId });
-  navigate(`/captures/${screenId}?event=${eventId}`);
+  const handleCaptureOptionSelect = (screenKey, eventId) => {
+  logger.info('Option de capture sélectionnée', { screenKey, eventId });
+  navigate(`/captures/${screenKey}/${eventId}`);
   setLaunchMenuOpen(null);
 };
 
@@ -512,33 +512,37 @@ useEffect(() => {
                       {/* Écrans Verticaux */}
                       <div className="space-y-1">
                         <h4 className="text-purple-300 text-xs font-semibold uppercase tracking-wider px-2">Écrans Verticaux</h4>
-                        {[1, 2, 3].map((num) => (
+                        {[
+                          { key: 'vertical-bg-1', label: 'Vertical BG 1' },
+                          { key: 'vertical-bg-2', label: 'Vertical BG 2' },
+                          { key: 'vertical-bg-3', label: 'Vertical BG 3' }
+                        ].map((screen) => (
                           <motion.button
-                            key={`verticale-${num}`}
-                            onClick={() => handleCaptureOptionSelect(`verticale-${num}`, event.id)}
-                            onMouseEnter={() => setHoveredOption(`verticale-${num}`)}
+                            key={screen.key}
+                            onClick={() => handleCaptureOptionSelect(screen.key, event.id)}
+                            onMouseEnter={() => setHoveredOption(screen.key)}
                             onMouseLeave={() => setHoveredOption(null)}
                             whileHover={{ x: 4 }}
                             whileTap={{ scale: 0.98 }}
                             className={`group w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
-                              hoveredOption === `verticale-${num}`
+                              hoveredOption === screen.key
                                 ? 'bg-gradient-to-r from-purple-600/30 to-blue-600/30 border border-purple-400/30'
                                 : 'bg-slate-800/50 hover:bg-slate-700/50'
                             }`}
                           >
                             <div className={`p-2 rounded-lg mr-4 transition-all duration-200 ${
-                              hoveredOption === `verticale-${num}`
+                              hoveredOption === screen.key
                                 ? 'bg-purple-500 text-white'
                                 : 'bg-slate-700 text-purple-300 group-hover:bg-purple-600 group-hover:text-white'
                             }`}>
                               <Smartphone className="w-5 h-5" />
                             </div>
                             <div className="flex-1 text-left">
-                              <div className="text-white font-medium">Écran Vertical {num}</div>
+                              <div className="text-white font-medium">{screen.label}</div>
                               <div className="text-slate-400 text-sm">Format portrait </div>
                             </div>
                             <div className={`transition-all duration-200 ${
-                              hoveredOption === `verticale-${num}` ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
+                              hoveredOption === screen.key ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
                             }`}>
                               <div className="w-2 h-2 rounded-full bg-purple-400"></div>
                             </div>
@@ -553,30 +557,30 @@ useEffect(() => {
                       <div className="space-y-1">
                         <h4 className="text-purple-300 text-xs font-semibold uppercase tracking-wider px-2">Écrans Horizontaux</h4>
                         <motion.button
-                          onClick={() => handleCaptureOptionSelect('horizontale-1', event.id)}
-                          onMouseEnter={() => setHoveredOption('horizontale-1')}
+                          onClick={() => handleCaptureOptionSelect('horizontal-bg-1', event.id)}
+                          onMouseEnter={() => setHoveredOption('horizontal-bg-1')}
                           onMouseLeave={() => setHoveredOption(null)}
                           whileHover={{ x: 4 }}
                           whileTap={{ scale: 0.98 }}
                           className={`group w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
-                            hoveredOption === 'horizontale-1'
+                            hoveredOption === 'horizontal-bg-1'
                               ? 'bg-gradient-to-r from-blue-600/30 to-teal-600/30 border border-blue-400/30'
                               : 'bg-slate-800/50 hover:bg-slate-700/50'
                           }`}
                         >
                           <div className={`p-2 rounded-lg mr-4 transition-all duration-200 ${
-                            hoveredOption === 'horizontale-1'
+                            hoveredOption === 'horizontal-bg-1'
                               ? 'bg-blue-500 text-white'
                               : 'bg-slate-700 text-blue-300 group-hover:bg-blue-600 group-hover:text-white'
                           }`}>
                             <Monitor className="w-5 h-5" />
                           </div>
                           <div className="flex-1 text-left">
-                            <div className="text-white font-medium">Écran Horizontal 1</div>
+                            <div className="text-white font-medium">Horizontal BG 1</div>
                             <div className="text-slate-400 text-sm">Format paysage • Desktop</div>
                           </div>
                           <div className={`transition-all duration-200 ${
-                            hoveredOption === 'horizontale-1' ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
+                            hoveredOption === 'horizontal-bg-1' ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
                           }`}>
                             <div className="w-2 h-2 rounded-full bg-blue-400"></div>
                           </div>

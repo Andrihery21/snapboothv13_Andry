@@ -196,7 +196,7 @@ export default function EventSelection() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              {user.role === 'admin' ? 'Tous les événements' : 'Vos événements'}
+              {user.role === 'admin' ? 'Tous les événements' : 'Vos événement'}
             </h1>
             {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
             
